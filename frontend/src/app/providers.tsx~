@@ -1,0 +1,32 @@
+// src/app/providers.tsx
+import { Provider } from 'react-redux';
+import { BrowserRouter } from 'react-router-dom';
+import { ThemeProvider } from 'styled-components';
+import { PropsWithChildren } from 'react';
+
+import { store } from './store';
+import { useAppSelector } from '../hooks/redux';
+import { darkTheme, lightTheme } from '../styles/theme';
+import { GlobalStyles } from '../styles/GlobalStyles';
+
+const ThemeWrapper = ({ children }: PropsWithChildren) => {
+    const mode = useAppSelector((state) => state.theme.mode);
+    const theme = mode === 'dark' ? darkTheme : lightTheme;
+
+    return (
+        <ThemeProvider theme={theme}>
+            <GlobalStyles />
+            {children}
+        </ThemeProvider>
+    );
+};
+
+export const AppProviders = ({ children }: PropsWithChildren) => {
+    return (
+        <Provider store={store}>
+            <BrowserRouter>
+                <ThemeWrapper>{children}</ThemeWrapper>
+            </BrowserRouter>
+        </Provider>
+    );
+};

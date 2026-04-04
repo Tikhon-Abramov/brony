@@ -1,0 +1,160 @@
+import styled from 'styled-components';
+import { glassCard } from '../../styles/theme';
+import { useAppDispatch, useAppSelector } from '../../hooks/redux';
+import { toggleTheme } from '../../features/themeSlice';
+
+interface HeaderAction {
+    label: string;
+    onClick: () => void;
+}
+
+interface HeaderProps {
+    title: string;
+    subtitle: string;
+    primaryAction?: HeaderAction;
+    secondaryAction?: HeaderAction;
+    tertiaryAction?: HeaderAction;
+}
+
+export default function Header({
+                                   title,
+                                   subtitle,
+                                   primaryAction,
+                                   secondaryAction,
+                                   tertiaryAction,
+                               }: HeaderProps) {
+    const dispatch = useAppDispatch();
+    const themeMode = useAppSelector((state) => state.theme.mode);
+
+    return (
+        <HeaderCard>
+            <Brand>
+                <Logo>T</Logo>
+
+                <div>
+                    <Title>{title}</Title>
+                    <Subtitle>{subtitle}</Subtitle>
+                </div>
+            </Brand>
+
+            <Actions>
+                <ThemeButton type="button" onClick={() => dispatch(toggleTheme())}>
+                    {themeMode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+                </ThemeButton>
+
+                {tertiaryAction && (
+                    <GhostButton type="button" onClick={tertiaryAction.onClick}>
+                        {tertiaryAction.label}
+                    </GhostButton>
+                )}
+
+                {secondaryAction && (
+                    <GhostButton type="button" onClick={secondaryAction.onClick}>
+                        {secondaryAction.label}
+                    </GhostButton>
+                )}
+
+                {primaryAction && (
+                    <PrimaryButton type="button" onClick={primaryAction.onClick}>
+                        {primaryAction.label}
+                    </PrimaryButton>
+                )}
+            </Actions>
+        </HeaderCard>
+    );
+}
+
+const HeaderCard = styled.header`
+    ${glassCard};
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    background: ${({ theme }) =>
+            theme.mode === 'dark' ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.6)'};
+
+    @media (max-width: 700px) {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 14px;
+    }
+`;
+
+const Brand = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 12px;
+`;
+
+const Logo = styled.div`
+    width: 42px;
+    height: 42px;
+    border-radius: 16px;
+    background: ${({ theme }) => theme.telegram};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 20px;
+    color: white;
+    box-shadow: 0 10px 24px rgba(34, 158, 217, 0.25);
+`;
+
+const Title = styled.h1`
+    margin: 0;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+
+    @media (max-width: 980px) {
+        font-size: 24px;
+    }
+
+    @media (max-width: 700px) {
+        font-size: 20px;
+    }
+`;
+
+const Subtitle = styled.p`
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: ${({ theme }) => theme.muted};
+`;
+
+const Actions = styled.div`
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+`;
+
+const BaseButton = styled.button`
+    border: 1px solid ${({ theme }) => theme.line};
+    color: ${({ theme }) => (theme.mode === 'dark' ? 'rgba(255,255,255,.84)' : '#24425c')};
+    padding: 10px 14px;
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: transform 0.2s ease, opacity 0.2s ease, border-color 0.2s ease;
+
+    &:hover {
+        transform: translateY(-1px);
+    }
+`;
+
+const ThemeButton = styled(BaseButton)`
+    background: transparent;
+`;
+
+const GhostButton = styled(BaseButton)`
+    background: ${({ theme }) => theme.input};
+`;
+
+const PrimaryButton = styled(BaseButton)`
+    background: ${({ theme }) => theme.cyan};
+    color: ${({ theme }) => (theme.mode === 'dark' ? '#c8efff' : '#0f4d73')};
+    border-color: rgba(125, 220, 255, 0.28);
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(34, 158, 217, 0.12);
+`;
