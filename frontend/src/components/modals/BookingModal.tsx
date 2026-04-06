@@ -15,6 +15,12 @@ import {
     isTimeRangeValid,
 } from '../../utils/booking';
 import TimeInput from '../../shared/ui/TimeInput';
+import SearchableSelect from '../../shared/ui/SearchableSelect';
+import {
+    departmentOptions,
+    employees,
+    employeeDepartmentMap,
+} from '../../services/referenceData';
 
 function formatDurationInput(value: string) {
     const digits = value.replace(/\D/g, '').slice(0, 4);
@@ -51,6 +57,22 @@ export default function BookingModal() {
     const [duration, setDuration] = useState('00:30');
     const [error, setError] = useState('');
 
+    const filteredEmployeeOptions = useMemo(() => {
+        if (!department) {
+            return employees.map((employee) => ({
+                value: employee.fullName,
+                label: employee.fullName,
+            }));
+        }
+
+        return employees
+            .filter((employee) => employee.department === department)
+            .map((employee) => ({
+                value: employee.fullName,
+                label: employee.fullName,
+            }));
+    }, [department]);
+
     const endTime = useMemo(() => {
         if (!isDurationValid(duration)) return '';
         return addMinutesToTime(startTime, durationToMinutes(duration));
@@ -71,11 +93,39 @@ export default function BookingModal() {
         dispatch(closeBookingModal());
     };
 
+    const handleDepartmentChange = (value: string) => {
+        setDepartment(value);
+        setError('');
+
+        if (!value) {
+            return;
+        }
+
+        if (fullName && employeeDepartmentMap[fullName] !== value) {
+            setFullName('');
+        }
+    };
+
+    const handleEmployeeChange = (value: string) => {
+        setFullName(value);
+        setError('');
+
+        if (!value) {
+            return;
+        }
+
+        const employeeDepartment = employeeDepartmentMap[value];
+
+        if (employeeDepartment) {
+            setDepartment(employeeDepartment);
+        }
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!fullName.trim() || !purpose.trim()) {
-            setError('Заполни ФИО и цель совещания');
+        if (!fullName.trim() || !purpose.trim() || !department.trim()) {
+            setError('Заполни ФИО, отдел и цель совещания');
             return;
         }
 
@@ -142,23 +192,32 @@ export default function BookingModal() {
                 </Top>
 
                 <Form onSubmit={handleSubmit}>
-
                     <Field>
                         <Label htmlFor="booking-department">Отдел</Label>
-                        <Input
+                        <SearchableSelect
                             id="booking-department"
                             value={department}
-                            onChange={(e) => setDepartment(e.target.value)}
+                            onChange={(value) => handleDepartmentChange(value)}
+                            options={departmentOptions}
+                            placeholder="Выбери отдел"
+                            searchPlaceholder="Найти отдел..."
+                            allowClear
                         />
                     </Field>
 
                     <Field>
                         <Label htmlFor="booking-full-name">ФИО</Label>
-                        <Input
+                        <SearchableSelect
                             id="booking-full-name"
                             value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                            placeholder="Иванов Иван Иванович"
+                            onChange={(value) => handleEmployeeChange(value)}
+                            options={filteredEmployeeOptions}
+                            placeholder={
+                                department ? 'Выбери сотрудника отдела' : 'Выбери сотрудника'
+                            }
+                            searchPlaceholder="Найти сотрудника..."
+                            emptyText="Сотрудники не найдены"
+                            allowClear
                         />
                     </Field>
 
@@ -171,8 +230,6 @@ export default function BookingModal() {
                             placeholder="Например, Распределение обязанностей"
                         />
                     </Field>
-
-
 
                     <DoubleGrid>
                         <Field>
@@ -285,8 +342,6 @@ const Title = styled.h2`
     font-size: 24px;
     line-height: 1.2;
 `;
-
-
 
 const CloseButton = styled.button`
     width: 38px;

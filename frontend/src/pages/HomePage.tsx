@@ -17,7 +17,7 @@ export default function HomePage() {
             <Container>
                 <Header
                     title="Бронирование"
-                    subtitle="Бронирование конференц-зала и быстрый просмотр текущей занятости"
+                    subtitle="конференц-зала и быстрый просмотр текущей занятости"
                     tertiaryAction={{
                         label: 'Войти как админ',
                         onClick: () => dispatch(openAuthModal()),

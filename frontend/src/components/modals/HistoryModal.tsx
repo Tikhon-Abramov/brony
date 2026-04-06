@@ -6,6 +6,12 @@ import { getBookingStatusLabel, timeToMinutes } from '../../utils/booking';
 import type { BookingStatus } from '../../services/mocks';
 import Select from '../../shared/ui/Select';
 import TimeInput from '../../shared/ui/TimeInput';
+import SearchableSelect from '../../shared/ui/SearchableSelect';
+import {
+    departmentOptions,
+    employees,
+    employeeDepartmentMap,
+} from '../../services/referenceData';
 
 const statusOptions = [
     { value: 'all', label: 'Все' },
@@ -26,19 +32,28 @@ export default function HistoryModal() {
     const [status, setStatus] = useState<'all' | BookingStatus>('all');
     const [useTimeFilter, setUseTimeFilter] = useState(false);
 
+    const filteredEmployeeOptions = useMemo(() => {
+        if (!department) {
+            return employees.map((employee) => ({
+                value: employee.fullName,
+                label: employee.fullName,
+            }));
+        }
+
+        return employees
+            .filter((employee) => employee.department === department)
+            .map((employee) => ({
+                value: employee.fullName,
+                label: employee.fullName,
+            }));
+    }, [department]);
+
     const filteredItems = useMemo(() => {
         return [...bookings]
             .filter((item) => {
-                const matchesFullName =
-                    !fullName.trim() ||
-                    item.fullName.toLowerCase().includes(fullName.trim().toLowerCase());
-
+                const matchesFullName = !fullName || item.fullName === fullName;
                 const matchesDepartment =
-                    !department.trim() ||
-                    (item.department ?? '')
-                        .toLowerCase()
-                        .includes(department.trim().toLowerCase());
-
+                    !department || (item.department ?? '') === department;
                 const matchesDate = !date || item.date === date;
 
                 const matchesTime =
@@ -71,6 +86,32 @@ export default function HistoryModal() {
         dispatch(closeHistoryModal());
     };
 
+    const handleDepartmentChange = (value: string) => {
+        setDepartment(value);
+
+        if (!value) {
+            return;
+        }
+
+        if (fullName && employeeDepartmentMap[fullName] !== value) {
+            setFullName('');
+        }
+    };
+
+    const handleEmployeeChange = (value: string) => {
+        setFullName(value);
+
+        if (!value) {
+            return;
+        }
+
+        const employeeDepartment = employeeDepartmentMap[value];
+
+        if (employeeDepartment) {
+            setDepartment(employeeDepartment);
+        }
+    };
+
     return (
         <Overlay onClick={handleClose}>
             <ModalCard onClick={(e) => e.stopPropagation()}>
@@ -83,22 +124,31 @@ export default function HistoryModal() {
 
                 <FiltersGrid>
                     <Field>
-                        <Label htmlFor="history-full-name">ФИО</Label>
-                        <Input
-                            id="history-full-name"
-                            value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                            placeholder="Поиск по ФИО"
+                        <Label htmlFor="history-department">Отдел</Label>
+                        <SearchableSelect
+                            id="history-department"
+                            value={department}
+                            onChange={(value) => handleDepartmentChange(value)}
+                            options={departmentOptions}
+                            placeholder="Все отделы"
+                            searchPlaceholder="Найти отдел..."
+                            allowClear
                         />
                     </Field>
 
                     <Field>
-                        <Label htmlFor="history-department">Отдел</Label>
-                        <Input
-                            id="history-department"
-                            value={department}
-                            onChange={(e) => setDepartment(e.target.value)}
-                            placeholder="Поиск по отделу"
+                        <Label htmlFor="history-full-name">ФИО</Label>
+                        <SearchableSelect
+                            id="history-full-name"
+                            value={fullName}
+                            onChange={(value) => handleEmployeeChange(value)}
+                            options={filteredEmployeeOptions}
+                            placeholder={
+                                department ? 'Сотрудники выбранного отдела' : 'Все сотрудники'
+                            }
+                            searchPlaceholder="Найти сотрудника..."
+                            emptyText="Сотрудники не найдены"
+                            allowClear
                         />
                     </Field>
 
@@ -328,32 +378,32 @@ const CardMeta = styled.p`
 `;
 
 const EmptyState = styled.div`
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px dashed ${({ theme }) => theme.line};
-  color: ${({ theme }) => theme.muted};
-  text-align: center;
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px dashed ${({ theme }) => theme.line};
+    color: ${({ theme }) => theme.muted};
+    text-align: center;
 `;
 
 const RejectReason = styled.p`
-  margin: 10px 0 0;
-  font-size: 13px;
-  color: ${({ theme }) => theme.danger};
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: ${({ theme }) => theme.danger};
 `;
 
 const StatusBadge = styled.span<{ $status: 'pending' | 'approved' | 'rejected' }>`
-  font-size: 12px;
-  border-radius: 999px;
-  padding: 6px 10px;
-  white-space: nowrap;
-  background: ${({ $status }) => {
-    if ($status === 'approved') return 'rgba(52,211,153,.15)';
-    if ($status === 'rejected') return 'rgba(251,113,133,.14)';
-    return 'rgba(245,158,11,.16)';
-}};
-  color: ${({ $status }) => {
-    if ($status === 'approved') return '#86efac';
-    if ($status === 'rejected') return '#fda4af';
-    return '#fcd34d';
-}};
+    font-size: 12px;
+    border-radius: 999px;
+    padding: 6px 10px;
+    white-space: nowrap;
+    background: ${({ $status }) => {
+        if ($status === 'approved') return 'rgba(52,211,153,.15)';
+        if ($status === 'rejected') return 'rgba(251,113,133,.14)';
+        return 'rgba(245,158,11,.16)';
+    }};
+    color: ${({ $status }) => {
+        if ($status === 'approved') return '#86efac';
+        if ($status === 'rejected') return '#fda4af';
+        return '#fcd34d';
+    }};
 `;
