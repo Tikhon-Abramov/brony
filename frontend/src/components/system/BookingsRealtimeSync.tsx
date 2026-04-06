@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useAppDispatch } from '../../hooks/redux';
 import { setBookings } from '../../features/bookingsSlice';
 import { api } from '../../services/api';
-import { connectBookingsEvents } from '../../services/events';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 export default function BookingsRealtimeSync() {
     const dispatch = useAppDispatch();
@@ -28,18 +29,19 @@ export default function BookingsRealtimeSync() {
             }
         };
 
-        const disconnect = connectBookingsEvents({
-            onBookingsChanged: () => {
-                refreshBookings();
-            },
-            onError: () => {
-                console.error('SSE connection error');
-            },
+        const eventSource = new EventSource(`${API_URL}/events`);
+
+        eventSource.addEventListener('bookings_changed', () => {
+            refreshBookings();
         });
+
+        eventSource.onerror = () => {
+            console.error('SSE connection error');
+        };
 
         return () => {
             disposed = true;
-            disconnect();
+            eventSource.close();
         };
     }, [dispatch]);
 

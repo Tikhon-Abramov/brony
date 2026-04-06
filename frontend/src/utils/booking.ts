@@ -45,9 +45,11 @@ export function sortBookingsByTime(bookings: BookingItem[]) {
     );
 }
 
-export function getBookingStatusLabel(status: BookingItem['status']) {
+export function getBookingStatusLabel(status: BookingItem['status'] | 'unreviewed') {
     if (status === 'approved') return 'Подтверждена';
     if (status === 'rejected') return 'Отклонена';
+    if (status === 'unreviewed') return 'Не рассмотрено';
+
     return 'На согласовании';
 }
 
@@ -80,8 +82,13 @@ export function findBookingConflict(
 ) {
     return bookings.find((booking) => {
         const sameDate = booking.date === payload.date;
-        const sameRoom = booking.roomId === payload.roomId;
-        const activeStatus = booking.status === 'approved' || booking.status === 'pending';
+        const sameRoom =
+            booking.roomId === payload.roomId ||
+            booking.roomName === payload.roomId ||
+            booking.roomName === 'Конференц-зал';
+
+        const activeStatus =
+            booking.status === 'approved' || booking.status === 'pending';
 
         if (!sameDate || !sameRoom || !activeStatus) {
             return false;
@@ -137,7 +144,10 @@ export function getMinStartTimeForDate(date: string) {
     }
 
     const nowTime = getCurrentTimeString();
-    return timeToMinutes(nowTime) > timeToMinutes(DAY_START_TIME) ? nowTime : DAY_START_TIME;
+
+    return timeToMinutes(nowTime) > timeToMinutes(DAY_START_TIME)
+        ? nowTime
+        : DAY_START_TIME;
 }
 
 export function clampStartTimeToAllowed(date: string, time: string) {

@@ -48,8 +48,8 @@ export default function RequestsSection() {
 }
 
 const Section = styled.section`
-  display: grid;
-  gap: 14px;
+    display: grid;
+    gap: 14px;
 `;
 
 const EmptyState = styled.div`

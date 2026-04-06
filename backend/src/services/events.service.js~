@@ -18,3 +18,7 @@ export function broadcastEvent(event, payload) {
         sendSseEvent(client, event, payload);
     }
 }
+
+export function getSseClientsCount() {
+    return clients.size;
+}

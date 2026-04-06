@@ -5,11 +5,11 @@ import { broadcastEvent } from './events.service.js';
 async function markExpiredPendingBookingsAsUnreviewed() {
     const [expiredRows] = await pool.query(
         `
-      SELECT id
-      FROM bookings
-      WHERE status = 'pending'
-        AND TIMESTAMP(date, end_time) < NOW()
-    `,
+            SELECT id
+            FROM bookings
+            WHERE status = 'pending'
+              AND TIMESTAMP(date, end_time) < NOW()
+        `,
     );
 
     if (expiredRows.length === 0) {
@@ -20,11 +20,11 @@ async function markExpiredPendingBookingsAsUnreviewed() {
 
     await pool.query(
         `
-      UPDATE bookings
-      SET status = 'unreviewed',
-          updated_at = NOW()
-      WHERE id IN (?)
-    `,
+            UPDATE bookings
+            SET status = 'unreviewed',
+                updated_at = NOW()
+            WHERE id IN (?)
+        `,
         [expiredIds],
     );
 
@@ -56,16 +56,16 @@ async function syncExpiredPendingBookings() {
 async function findEmployeeByFullName(fullName) {
     const [rows] = await pool.query(
         `
-      SELECT
-        e.id,
-        e.full_name AS fullName,
-        d.id AS departmentId,
-        d.name AS department
-      FROM employees e
-      INNER JOIN departments d ON d.id = e.department_id
-      WHERE e.full_name = ?
-      LIMIT 1
-    `,
+            SELECT
+                e.id,
+                e.full_name AS fullName,
+                d.id AS departmentId,
+                d.name AS department
+            FROM employees e
+                     INNER JOIN departments d ON d.id = e.department_id
+            WHERE e.full_name = ?
+                LIMIT 1
+        `,
         [fullName],
     );
 
@@ -75,11 +75,11 @@ async function findEmployeeByFullName(fullName) {
 async function findDepartmentByName(name) {
     const [rows] = await pool.query(
         `
-      SELECT id, name
-      FROM departments
-      WHERE name = ?
-      LIMIT 1
-    `,
+            SELECT id, name
+            FROM departments
+            WHERE name = ?
+                LIMIT 1
+        `,
         [name],
     );
 
@@ -88,13 +88,13 @@ async function findDepartmentByName(name) {
 
 function bookingSelectSql() {
     return `
-    SELECT
-      b.id,
-      e.full_name AS fullName,
-      b.purpose,
-      d.name AS department,
-      b.room_name AS roomName,
-      DATE_FORMAT(b.date, '%Y-%m-%d') AS date,
+        SELECT
+            b.id,
+            e.full_name AS fullName,
+            b.purpose,
+            d.name AS department,
+            b.room_name AS roomName,
+            DATE_FORMAT(b.date, '%Y-%m-%d') AS date,
       TIME_FORMAT(b.start_time, '%H:%i') AS startTime,
       TIME_FORMAT(b.end_time, '%H:%i') AS endTime,
       b.status,
@@ -104,11 +104,11 @@ function bookingSelectSql() {
       u.id AS processedByUserId,
       u.name AS processedByName,
       u.login AS processedByLogin
-    FROM bookings b
-    INNER JOIN employees e ON e.id = b.employee_id
-    INNER JOIN departments d ON d.id = b.department_id
-    LEFT JOIN users u ON u.id = b.processed_by_user_id
-  `;
+        FROM bookings b
+            INNER JOIN employees e ON e.id = b.employee_id
+            INNER JOIN departments d ON d.id = b.department_id
+            LEFT JOIN users u ON u.id = b.processed_by_user_id
+    `;
 }
 
 function mapBooking(row) {
@@ -214,15 +214,15 @@ export async function createBooking(data) {
 
     const [conflicts] = await pool.query(
         `
-      SELECT id
-      FROM bookings
-      WHERE date = ?
-        AND room_name = ?
-        AND status IN ('pending', 'approved')
-        AND start_time < ?
-        AND end_time > ?
-      LIMIT 1
-    `,
+            SELECT id
+            FROM bookings
+            WHERE date = ?
+              AND room_name = ?
+              AND status IN ('pending', 'approved')
+              AND start_time < ?
+              AND end_time > ?
+                LIMIT 1
+        `,
         [date, roomName, endTime, startTime],
     );
 
@@ -234,21 +234,21 @@ export async function createBooking(data) {
 
     const [result] = await pool.query(
         `
-      INSERT INTO bookings (
-        employee_id,
-        department_id,
-        purpose,
-        room_name,
-        date,
-        start_time,
-        end_time,
-        status,
-        processed_by_user_id,
-        created_at,
-        updated_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NULL, NOW(), NOW())
-    `,
+            INSERT INTO bookings (
+                employee_id,
+                department_id,
+                purpose,
+                room_name,
+                date,
+                start_time,
+                end_time,
+                status,
+                processed_by_user_id,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NULL, NOW(), NOW())
+        `,
         [employee.id, departmentRow.id, purpose, roomName, date, startTime, endTime],
     );
 
@@ -270,13 +270,13 @@ export async function approveBooking(id, userId) {
 
     const [result] = await pool.query(
         `
-      UPDATE bookings
-      SET status = 'approved',
-          rejection_reason = NULL,
-          processed_by_user_id = ?,
-          updated_at = NOW()
-      WHERE id = ?
-    `,
+            UPDATE bookings
+            SET status = 'approved',
+                rejection_reason = NULL,
+                processed_by_user_id = ?,
+                updated_at = NOW()
+            WHERE id = ?
+        `,
         [userId, id],
     );
 
@@ -310,13 +310,13 @@ export async function rejectBooking(id, reason, userId) {
 
     const [result] = await pool.query(
         `
-      UPDATE bookings
-      SET status = 'rejected',
-          rejection_reason = ?,
-          processed_by_user_id = ?,
-          updated_at = NOW()
-      WHERE id = ?
-    `,
+            UPDATE bookings
+            SET status = 'rejected',
+                rejection_reason = ?,
+                processed_by_user_id = ?,
+                updated_at = NOW()
+            WHERE id = ?
+        `,
         [reason.trim(), userId, id],
     );
 

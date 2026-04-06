@@ -4,7 +4,7 @@ import BookingModal from './components/modals/BookingModal';
 import RejectReasonModal from './components/modals/RejectReasonModal';
 import HistoryModal from './components/modals/HistoryModal';
 import BookingsRealtimeSync from './components/system/BookingsRealtimeSync';
-import {AppRouter} from "./routes/AppRouter.tsx";
+import { AppRouter } from './routes/AppRouter';
 
 export default function App() {
     return (
@@ -20,5 +20,5 @@ export default function App() {
 }
 
 const Shell = styled.div`
-  min-height: 100vh;
+    min-height: 100vh;
 `;

@@ -3,30 +3,69 @@ import { isDateTimeInPast, isTimeRangeValid } from '../utils/time.js';
 import { broadcastEvent } from './events.service.js';
 
 async function markExpiredPendingBookingsAsUnreviewed() {
+    const [expiredRows] = await pool.query(
+        `
+      SELECT id
+      FROM bookings
+      WHERE status = 'pending'
+        AND TIMESTAMP(date, end_time) < NOW()
+    `,
+    );
+
+    if (expiredRows.length === 0) {
+        return [];
+    }
+
+    const expiredIds = expiredRows.map((row) => row.id);
+
     await pool.query(
         `
       UPDATE bookings
       SET status = 'unreviewed',
           updated_at = NOW()
-      WHERE status = 'pending'
-        AND TIMESTAMP(date, end_time) < NOW()
+      WHERE id IN (?)
     `,
+        [expiredIds],
     );
+
+    return expiredIds;
+}
+
+async function emitBookingsChangedForIds(ids, eventType = 'booking_updated') {
+    if (!ids.length) return;
+
+    for (const id of ids) {
+        const booking = await getBookingById(id);
+
+        if (!booking) continue;
+
+        broadcastEvent('booking_updated', booking);
+        broadcastEvent('bookings_changed', {
+            type: eventType,
+            bookingId: booking.id,
+        });
+    }
+}
+
+async function syncExpiredPendingBookings() {
+    const expiredIds = await markExpiredPendingBookingsAsUnreviewed();
+    await emitBookingsChangedForIds(expiredIds, 'booking_updated');
+    return expiredIds;
 }
 
 async function findEmployeeByFullName(fullName) {
     const [rows] = await pool.query(
         `
-            SELECT
-                e.id,
-                e.full_name AS fullName,
-                d.id AS departmentId,
-                d.name AS department
-            FROM employees e
-                     INNER JOIN departments d ON d.id = e.department_id
-            WHERE e.full_name = ?
-                LIMIT 1
-        `,
+      SELECT
+        e.id,
+        e.full_name AS fullName,
+        d.id AS departmentId,
+        d.name AS department
+      FROM employees e
+      INNER JOIN departments d ON d.id = e.department_id
+      WHERE e.full_name = ?
+      LIMIT 1
+    `,
         [fullName],
     );
 
@@ -110,7 +149,7 @@ async function getBookingById(id) {
 }
 
 export async function getAllBookings() {
-    await markExpiredPendingBookingsAsUnreviewed();
+    await syncExpiredPendingBookings();
 
     const [rows] = await pool.query(
         `
@@ -123,7 +162,7 @@ export async function getAllBookings() {
 }
 
 export async function createBooking(data) {
-    await markExpiredPendingBookingsAsUnreviewed();
+    await syncExpiredPendingBookings();
 
     const {
         fullName,
@@ -215,14 +254,19 @@ export async function createBooking(data) {
 
     const booking = await getBookingById(result.insertId);
 
-    broadcastEvent('booking_created', booking);
-    broadcastEvent('bookings_changed', { type: 'booking_created', bookingId: booking.id });
+    if (booking) {
+        broadcastEvent('booking_created', booking);
+        broadcastEvent('bookings_changed', {
+            type: 'booking_created',
+            bookingId: booking.id,
+        });
+    }
 
     return booking;
 }
 
 export async function approveBooking(id, userId) {
-    await markExpiredPendingBookingsAsUnreviewed();
+    await syncExpiredPendingBookings();
 
     const [result] = await pool.query(
         `
@@ -244,14 +288,19 @@ export async function approveBooking(id, userId) {
 
     const booking = await getBookingById(id);
 
-    broadcastEvent('booking_updated', booking);
-    broadcastEvent('bookings_changed', { type: 'booking_updated', bookingId: booking.id });
+    if (booking) {
+        broadcastEvent('booking_updated', booking);
+        broadcastEvent('bookings_changed', {
+            type: 'booking_updated',
+            bookingId: booking.id,
+        });
+    }
 
     return booking;
 }
 
 export async function rejectBooking(id, reason, userId) {
-    await markExpiredPendingBookingsAsUnreviewed();
+    await syncExpiredPendingBookings();
 
     if (!reason?.trim()) {
         const error = new Error('Укажи причину отклонения');
@@ -279,12 +328,17 @@ export async function rejectBooking(id, reason, userId) {
 
     const booking = await getBookingById(id);
 
-    broadcastEvent('booking_updated', booking);
-    broadcastEvent('bookings_changed', { type: 'booking_updated', bookingId: booking.id });
+    if (booking) {
+        broadcastEvent('booking_updated', booking);
+        broadcastEvent('bookings_changed', {
+            type: 'booking_updated',
+            bookingId: booking.id,
+        });
+    }
 
     return booking;
 }
 
 export async function refreshExpiredBookings() {
-    await markExpiredPendingBookingsAsUnreviewed();
+    await syncExpiredPendingBookings();
 }

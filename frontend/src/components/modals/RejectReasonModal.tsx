@@ -66,7 +66,9 @@ export default function RejectReasonModal() {
             <ModalCard onClick={(e) => e.stopPropagation()}>
                 <Top>
                     <Title>Отклонить заявку</Title>
-                    <CloseButton onClick={handleClose}>✕</CloseButton>
+                    <CloseButton type="button" onClick={handleClose}>
+                        ✕
+                    </CloseButton>
                 </Top>
 
                 <Meta>
@@ -75,8 +77,9 @@ export default function RejectReasonModal() {
 
                 <Form onSubmit={handleSubmit}>
                     <Field>
-                        <Label>Причина отклонения</Label>
+                        <Label htmlFor="reject-reason">Причина отклонения</Label>
                         <Textarea
+                            id="reject-reason"
                             rows={5}
                             value={reason}
                             onChange={(e) => {
@@ -179,39 +182,39 @@ const Textarea = styled.textarea`
 `;
 
 const ErrorText = styled.div`
-  font-size: 14px;
-  color: ${({ theme }) => theme.danger};
+    font-size: 14px;
+    color: ${({ theme }) => theme.danger};
 `;
 
 const Actions = styled.div`
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
 `;
 
 const BaseButton = styled.button`
-  min-height: 46px;
-  padding: 12px 16px;
-  border-radius: 16px;
-  cursor: pointer;
-  border: 1px solid ${({ theme }) => theme.line};
-  font-size: 14px;
+    min-height: 46px;
+    padding: 12px 16px;
+    border-radius: 16px;
+    cursor: pointer;
+    border: 1px solid ${({ theme }) => theme.line};
+    font-size: 14px;
 
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
 `;
 
 const GhostButton = styled(BaseButton)`
-  background: ${({ theme }) => theme.input};
-  color: ${({ theme }) => theme.text};
+    background: ${({ theme }) => theme.input};
+    color: ${({ theme }) => theme.text};
 `;
 
 const PrimaryButton = styled(BaseButton)`
-  background: ${({ theme }) => theme.cyan};
-  color: ${({ theme }) => (theme.mode === 'dark' ? '#c8efff' : '#0f4d73')};
-  border-color: rgba(125, 220, 255, 0.28);
-  font-weight: 600;
+    background: ${({ theme }) => theme.cyan};
+    color: ${({ theme }) => (theme.mode === 'dark' ? '#c8efff' : '#0f4d73')};
+    border-color: rgba(125, 220, 255, 0.28);
+    font-weight: 600;
 `;

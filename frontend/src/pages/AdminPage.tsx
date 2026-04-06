@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
-import { selectAuth } from '../features/selectors';
 import { openAuthModal } from '../features/uiSlice';
 import { logout } from '../features/authSlice';
 import { setBookings } from '../features/bookingsSlice';
@@ -14,7 +13,7 @@ import { api } from '../services/api';
 export default function AdminPage() {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
-    const auth = useAppSelector(selectAuth);
+    const auth = useAppSelector((state) => state.auth);
 
     useEffect(() => {
         let cancelled = false;
@@ -49,11 +48,13 @@ export default function AdminPage() {
                         </Subtitle>
 
                         <Actions>
-                            <PrimaryButton onClick={() => dispatch(openAuthModal())}>
+                            <PrimaryButton type="button" onClick={() => dispatch(openAuthModal())}>
                                 Войти
                             </PrimaryButton>
 
-                            <GhostButton onClick={() => navigate('/')}>На главную</GhostButton>
+                            <GhostButton type="button" onClick={() => navigate('/')}>
+                                На главную
+                            </GhostButton>
                         </Actions>
                     </CenteredCard>
                 </Container>

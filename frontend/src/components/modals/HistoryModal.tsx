@@ -14,6 +14,7 @@ const statusOptions = [
     { value: 'pending', label: 'На согласовании' },
     { value: 'approved', label: 'Подтверждённые' },
     { value: 'rejected', label: 'Отклонённые' },
+    { value: 'unreviewed', label: 'Не рассмотрено' },
 ] as const;
 
 export default function HistoryModal() {
@@ -25,10 +26,11 @@ export default function HistoryModal() {
     const [department, setDepartment] = useState('');
     const [date, setDate] = useState('');
     const [time, setTime] = useState('09:00');
-    const [status, setStatus] = useState<'all' | BookingStatus>('all');
+    const [status, setStatus] = useState<'all' | BookingStatus | 'unreviewed'>('all');
     const [useTimeFilter, setUseTimeFilter] = useState(false);
     const [departmentOptions, setDepartmentOptions] = useState<ReferenceOption[]>([]);
     const [employeeOptions, setEmployeeOptions] = useState<EmployeeReferenceOption[]>([]);
+    const [isLoadingRefs, setIsLoadingRefs] = useState(false);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -37,6 +39,8 @@ export default function HistoryModal() {
 
         const loadReferences = async () => {
             try {
+                setIsLoadingRefs(true);
+
                 const [departments, employees] = await Promise.all([
                     api.getDepartments(),
                     api.getEmployees(),
@@ -48,6 +52,10 @@ export default function HistoryModal() {
                 }
             } catch (error) {
                 console.error('Failed to load reference data:', error);
+            } finally {
+                if (!cancelled) {
+                    setIsLoadingRefs(false);
+                }
             }
         };
 
@@ -105,7 +113,9 @@ export default function HistoryModal() {
             .sort((a, b) => {
                 const dateCompare = b.date.localeCompare(a.date);
 
-                if (dateCompare !== 0) return dateCompare;
+                if (dateCompare !== 0) {
+                    return dateCompare;
+                }
 
                 return timeToMinutes(b.startTime) - timeToMinutes(a.startTime);
             });
@@ -120,7 +130,9 @@ export default function HistoryModal() {
     const handleDepartmentChange = (value: string) => {
         setDepartment(value);
 
-        if (!value) return;
+        if (!value) {
+            return;
+        }
 
         if (fullName && employeeDepartmentMap[fullName] !== value) {
             setFullName('');
@@ -130,7 +142,9 @@ export default function HistoryModal() {
     const handleEmployeeChange = (value: string) => {
         setFullName(value);
 
-        if (!value) return;
+        if (!value) {
+            return;
+        }
 
         const employeeDepartment = employeeDepartmentMap[value];
 
@@ -157,9 +171,10 @@ export default function HistoryModal() {
                             value={department}
                             onChange={handleDepartmentChange}
                             options={departmentOptions}
-                            placeholder="Все отделы"
+                            placeholder={isLoadingRefs ? 'Загрузка...' : 'Все отделы'}
                             searchPlaceholder="Найти отдел..."
                             allowClear
+                            disabled={isLoadingRefs}
                         />
                     </Field>
 
@@ -171,11 +186,16 @@ export default function HistoryModal() {
                             onChange={handleEmployeeChange}
                             options={filteredEmployeeOptions}
                             placeholder={
-                                department ? 'Сотрудники выбранного отдела' : 'Все сотрудники'
+                                isLoadingRefs
+                                    ? 'Загрузка...'
+                                    : department
+                                        ? 'Сотрудники выбранного отдела'
+                                        : 'Все сотрудники'
                             }
                             searchPlaceholder="Найти сотрудника..."
                             emptyText="Сотрудники не найдены"
                             allowClear
+                            disabled={isLoadingRefs}
                         />
                     </Field>
 
@@ -216,7 +236,9 @@ export default function HistoryModal() {
                         <Select
                             id="history-status"
                             value={status}
-                            onChange={(value) => setStatus(value as 'all' | BookingStatus)}
+                            onChange={(value) =>
+                                setStatus(value as 'all' | BookingStatus | 'unreviewed')
+                            }
                             options={[...statusOptions]}
                         />
                     </Field>
@@ -245,6 +267,12 @@ export default function HistoryModal() {
 
                                     {item.rejectionReason && (
                                         <RejectReason>Причина: {item.rejectionReason}</RejectReason>
+                                    )}
+
+                                    {item.processedBy && (
+                                        <ProcessedBy>
+                                            Обработал: {item.processedBy.name}
+                                        </ProcessedBy>
                                     )}
                                 </HistoryCard>
                             ))}
@@ -418,19 +446,27 @@ const RejectReason = styled.p`
     color: ${({ theme }) => theme.danger};
 `;
 
-const StatusBadge = styled.span<{ $status: 'pending' | 'approved' | 'rejected' }>`
-    font-size: 12px;
-    border-radius: 999px;
-    padding: 6px 10px;
-    white-space: nowrap;
-    background: ${({ $status }) => {
-        if ($status === 'approved') return 'rgba(52,211,153,.15)';
-        if ($status === 'rejected') return 'rgba(251,113,133,.14)';
-        return 'rgba(245,158,11,.16)';
-    }};
-    color: ${({ $status }) => {
-        if ($status === 'approved') return '#86efac';
-        if ($status === 'rejected') return '#fda4af';
-        return '#fcd34d';
-    }};
+const ProcessedBy = styled.p`
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: ${({ theme }) => theme.muted};
+`;
+
+const StatusBadge = styled.span<{ $status: string }>`
+  font-size: 12px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  background: ${({ $status }) => {
+    if ($status === 'approved') return 'rgba(52,211,153,.15)';
+    if ($status === 'rejected') return 'rgba(251,113,133,.14)';
+    if ($status === 'unreviewed') return 'rgba(148,163,184,.18)';
+    return 'rgba(245,158,11,.16)';
+}};
+  color: ${({ $status }) => {
+    if ($status === 'approved') return '#86efac';
+    if ($status === 'rejected') return '#fda4af';
+    if ($status === 'unreviewed') return '#cbd5e1';
+    return '#fcd34d';
+}};
 `;
