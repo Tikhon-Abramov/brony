@@ -1,0 +1,264 @@
+import { pool } from '../config/db.js';
+import { isDateTimeInPast, isTimeRangeValid } from '../utils/time.js';
+
+async function findEmployeeByFullName(fullName) {
+    const [rows] = await pool.query(
+        `
+            SELECT
+                e.id,
+                e.full_name AS fullName,
+                d.id AS departmentId,
+                d.name AS department
+            FROM employees e
+                     INNER JOIN departments d ON d.id = e.department_id
+            WHERE e.full_name = ?
+                LIMIT 1
+        `,
+        [fullName],
+    );
+
+    return rows[0] || null;
+}
+
+async function findDepartmentByName(name) {
+    const [rows] = await pool.query(
+        `
+            SELECT id, name
+            FROM departments
+            WHERE name = ?
+                LIMIT 1
+        `,
+        [name],
+    );
+
+    return rows[0] || null;
+}
+
+function bookingSelectSql() {
+    return `
+    SELECT
+      b.id,
+      e.full_name AS fullName,
+      b.purpose,
+      d.name AS department,
+      b.room_name AS roomName,
+      DATE_FORMAT(b.date, '%Y-%m-%d') AS date,
+      TIME_FORMAT(b.start_time, '%H:%i') AS startTime,
+      TIME_FORMAT(b.end_time, '%H:%i') AS endTime,
+      b.status,
+      b.rejection_reason AS rejectionReason,
+      b.created_at AS createdAt,
+      b.updated_at AS updatedAt,
+      u.id AS processedByUserId,
+      u.name AS processedByName,
+      u.login AS processedByLogin
+    FROM bookings b
+    INNER JOIN employees e ON e.id = b.employee_id
+    INNER JOIN departments d ON d.id = b.department_id
+    LEFT JOIN users u ON u.id = b.processed_by_user_id
+  `;
+}
+
+function mapBooking(row) {
+    return {
+        id: row.id,
+        fullName: row.fullName,
+        purpose: row.purpose,
+        department: row.department,
+        roomName: row.roomName,
+        date: row.date,
+        startTime: row.startTime,
+        endTime: row.endTime,
+        status: row.status,
+        rejectionReason: row.rejectionReason,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        processedBy: row.processedByUserId
+            ? {
+                id: row.processedByUserId,
+                name: row.processedByName,
+                login: row.processedByLogin,
+            }
+            : null,
+    };
+}
+
+export async function getAllBookings() {
+    const [rows] = await pool.query(
+        `
+      ${bookingSelectSql()}
+      ORDER BY b.date DESC, b.start_time DESC
+    `,
+    );
+
+    return rows.map(mapBooking);
+}
+
+export async function createBooking(data) {
+    const {
+        fullName,
+        purpose,
+        department,
+        roomName = 'Конференц-зал',
+        date,
+        startTime,
+        endTime,
+    } = data;
+
+    if (!fullName || !purpose || !department || !date || !startTime || !endTime) {
+        const error = new Error('Не все обязательные поля заполнены');
+        error.status = 400;
+        throw error;
+    }
+
+    if (isDateTimeInPast(date, startTime)) {
+        const error = new Error('Нельзя создать бронирование в прошедшем времени');
+        error.status = 400;
+        throw error;
+    }
+
+    if (!isTimeRangeValid(startTime, endTime)) {
+        const error = new Error('Время окончания должно быть позже времени начала');
+        error.status = 400;
+        throw error;
+    }
+
+    const employee = await findEmployeeByFullName(fullName);
+    if (!employee) {
+        const error = new Error('Сотрудник не найден');
+        error.status = 404;
+        throw error;
+    }
+
+    const departmentRow = await findDepartmentByName(department);
+    if (!departmentRow) {
+        const error = new Error('Отдел не найден');
+        error.status = 404;
+        throw error;
+    }
+
+    if (employee.departmentId !== departmentRow.id) {
+        const error = new Error('Сотрудник не принадлежит выбранному отделу');
+        error.status = 400;
+        throw error;
+    }
+
+    const [conflicts] = await pool.query(
+        `
+      SELECT id
+      FROM bookings
+      WHERE date = ?
+        AND room_name = ?
+        AND status IN ('pending', 'approved')
+        AND start_time < ?
+        AND end_time > ?
+      LIMIT 1
+    `,
+        [date, roomName, endTime, startTime],
+    );
+
+    if (conflicts.length > 0) {
+        const error = new Error('Этот временной интервал уже занят');
+        error.status = 409;
+        throw error;
+    }
+
+    const [result] = await pool.query(
+        `
+      INSERT INTO bookings (
+        employee_id,
+        department_id,
+        purpose,
+        room_name,
+        date,
+        start_time,
+        end_time,
+        status,
+        processed_by_user_id,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NULL, NOW(), NOW())
+    `,
+        [employee.id, departmentRow.id, purpose, roomName, date, startTime, endTime],
+    );
+
+    const [rows] = await pool.query(
+        `
+      ${bookingSelectSql()}
+      WHERE b.id = ?
+      LIMIT 1
+    `,
+        [result.insertId],
+    );
+
+    return mapBooking(rows[0]);
+}
+
+export async function approveBooking(id, userId) {
+    const [result] = await pool.query(
+        `
+      UPDATE bookings
+      SET status = 'approved',
+          rejection_reason = NULL,
+          processed_by_user_id = ?,
+          updated_at = NOW()
+      WHERE id = ?
+    `,
+        [userId, id],
+    );
+
+    if (result.affectedRows === 0) {
+        const error = new Error('Заявка не найдена');
+        error.status = 404;
+        throw error;
+    }
+
+    const [rows] = await pool.query(
+        `
+      ${bookingSelectSql()}
+      WHERE b.id = ?
+      LIMIT 1
+    `,
+        [id],
+    );
+
+    return mapBooking(rows[0]);
+}
+
+export async function rejectBooking(id, reason, userId) {
+    if (!reason?.trim()) {
+        const error = new Error('Укажи причину отклонения');
+        error.status = 400;
+        throw error;
+    }
+
+    const [result] = await pool.query(
+        `
+      UPDATE bookings
+      SET status = 'rejected',
+          rejection_reason = ?,
+          processed_by_user_id = ?,
+          updated_at = NOW()
+      WHERE id = ?
+    `,
+        [reason.trim(), userId, id],
+    );
+
+    if (result.affectedRows === 0) {
+        const error = new Error('Заявка не найдена');
+        error.status = 404;
+        throw error;
+    }
+
+    const [rows] = await pool.query(
+        `
+      ${bookingSelectSql()}
+      WHERE b.id = ?
+      LIMIT 1
+    `,
+        [id],
+    );
+
+    return mapBooking(rows[0]);
+}

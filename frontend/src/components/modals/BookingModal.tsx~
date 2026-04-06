@@ -16,7 +16,11 @@ import {
 } from '../../utils/booking';
 import TimeInput from '../../shared/ui/TimeInput';
 import SearchableSelect from '../../shared/ui/SearchableSelect';
-import { departmentOptions, employeeOptions } from '../../services/referenceData';
+import {
+    departmentOptions,
+    employees,
+    employeeDepartmentMap,
+} from '../../services/referenceData';
 
 function formatDurationInput(value: string) {
     const digits = value.replace(/\D/g, '').slice(0, 4);
@@ -53,6 +57,22 @@ export default function BookingModal() {
     const [duration, setDuration] = useState('00:30');
     const [error, setError] = useState('');
 
+    const filteredEmployeeOptions = useMemo(() => {
+        if (!department) {
+            return employees.map((employee) => ({
+                value: employee.fullName,
+                label: employee.fullName,
+            }));
+        }
+
+        return employees
+            .filter((employee) => employee.department === department)
+            .map((employee) => ({
+                value: employee.fullName,
+                label: employee.fullName,
+            }));
+    }, [department]);
+
     const endTime = useMemo(() => {
         if (!isDurationValid(duration)) return '';
         return addMinutesToTime(startTime, durationToMinutes(duration));
@@ -71,6 +91,34 @@ export default function BookingModal() {
 
     const handleClose = () => {
         dispatch(closeBookingModal());
+    };
+
+    const handleDepartmentChange = (value: string) => {
+        setDepartment(value);
+        setError('');
+
+        if (!value) {
+            return;
+        }
+
+        if (fullName && employeeDepartmentMap[fullName] !== value) {
+            setFullName('');
+        }
+    };
+
+    const handleEmployeeChange = (value: string) => {
+        setFullName(value);
+        setError('');
+
+        if (!value) {
+            return;
+        }
+
+        const employeeDepartment = employeeDepartmentMap[value];
+
+        if (employeeDepartment) {
+            setDepartment(employeeDepartment);
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -149,13 +197,11 @@ export default function BookingModal() {
                         <SearchableSelect
                             id="booking-department"
                             value={department}
-                            onChange={(value) => {
-                                setDepartment(value);
-                                setError('');
-                            }}
+                            onChange={(value) => handleDepartmentChange(value)}
                             options={departmentOptions}
                             placeholder="Выбери отдел"
                             searchPlaceholder="Найти отдел..."
+                            allowClear
                         />
                     </Field>
 
@@ -164,13 +210,14 @@ export default function BookingModal() {
                         <SearchableSelect
                             id="booking-full-name"
                             value={fullName}
-                            onChange={(value) => {
-                                setFullName(value);
-                                setError('');
-                            }}
-                            options={employeeOptions}
-                            placeholder="Выбери сотрудника"
+                            onChange={(value) => handleEmployeeChange(value)}
+                            options={filteredEmployeeOptions}
+                            placeholder={
+                                department ? 'Выбери сотрудника отдела' : 'Выбери сотрудника'
+                            }
                             searchPlaceholder="Найти сотрудника..."
+                            emptyText="Сотрудники не найдены"
+                            allowClear
                         />
                     </Field>
 

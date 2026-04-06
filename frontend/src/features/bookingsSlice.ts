@@ -1,7 +1,7 @@
-import { createSlice, nanoid } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { format } from 'date-fns';
-import { mockBookings, type BookingItem, type BookingStatus } from '../services/mocks';
+import type { BookingItem, BookingStatus } from '../services/mocks';
 
 interface BookingFilters {
     search: string;
@@ -26,7 +26,7 @@ interface BookingsState {
 }
 
 const initialState: BookingsState = {
-    items: mockBookings,
+    items: [],
     selectedDate: format(new Date(), 'yyyy-MM-dd'),
     selectedTime: '10:00',
     filters: {
@@ -39,6 +39,10 @@ const bookingsSlice = createSlice({
     name: 'bookings',
     initialState,
     reducers: {
+        setBookings(state, action: PayloadAction<BookingItem[]>) {
+            state.items = action.payload;
+        },
+
         setSelectedDate(state, action: PayloadAction<string>) {
             state.selectedDate = action.payload;
         },
@@ -55,48 +59,31 @@ const bookingsSlice = createSlice({
             state.filters.status = action.payload;
         },
 
-        createBooking(state, action: PayloadAction<CreateBookingPayload>) {
-            const now = new Date().toISOString();
-
-            state.items.unshift({
-                ...action.payload,
-                id: nanoid(),
-                status: 'pending',
-                createdAt: now,
-                updatedAt: now,
-            });
+        addBooking(state, action: PayloadAction<BookingItem>) {
+            state.items.unshift(action.payload);
         },
 
-        approveBooking(state, action: PayloadAction<string>) {
-            const booking = state.items.find((item) => item.id === action.payload);
+        replaceBooking(state, action: PayloadAction<BookingItem>) {
+            const index = state.items.findIndex((item) => item.id === action.payload.id);
 
-            if (!booking) return;
+            if (index === -1) {
+                state.items.unshift(action.payload);
+                return;
+            }
 
-            booking.status = 'approved';
-            booking.rejectionReason = undefined;
-            booking.updatedAt = new Date().toISOString();
-        },
-
-        rejectBooking(state, action: PayloadAction<{ id: string; reason: string }>) {
-            const booking = state.items.find((item) => item.id === action.payload.id);
-
-            if (!booking) return;
-
-            booking.status = 'rejected';
-            booking.rejectionReason = action.payload.reason;
-            booking.updatedAt = new Date().toISOString();
+            state.items[index] = action.payload;
         },
     },
 });
 
 export const {
+    setBookings,
     setSelectedDate,
     setSelectedTime,
     setSearch,
     setStatusFilter,
-    createBooking,
-    approveBooking,
-    rejectBooking,
+    addBooking,
+    replaceBooking,
 } = bookingsSlice.actions;
 
 export default bookingsSlice.reducer;

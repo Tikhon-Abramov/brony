@@ -1,12 +1,37 @@
+import { useEffect } from 'react';
 import styled from 'styled-components';
 import { useAppDispatch } from '../hooks/redux';
 import { openAuthModal, openBookingModal } from '../features/uiSlice';
+import { setBookings } from '../features/bookingsSlice';
 import Header from '../components/layout/Header';
 import BookingSidebar from '../components/home/BookingSidebar';
 import ScheduleSection from '../components/home/ScheduleSection';
+import { api } from '../services/api';
 
 export default function HomePage() {
     const dispatch = useAppDispatch();
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadBookings = async () => {
+            try {
+                const items = await api.getBookings();
+
+                if (!cancelled) {
+                    dispatch(setBookings(items));
+                }
+            } catch (error) {
+                console.error('Failed to load bookings:', error);
+            }
+        };
+
+        loadBookings();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [dispatch]);
 
     return (
         <Page>

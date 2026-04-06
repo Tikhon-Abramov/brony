@@ -1,0 +1,43 @@
+import { pool } from '../config/db.js';
+
+export async function getDepartmentsList() {
+    const [rows] = await pool.query(
+        `
+      SELECT
+        id,
+        name
+      FROM departments
+      ORDER BY name ASC
+    `,
+    );
+
+    return rows.map((row) => ({
+        id: row.id,
+        value: row.name,
+        label: row.name,
+    }));
+}
+
+export async function getEmployeesList() {
+    const [rows] = await pool.query(
+        `
+      SELECT
+        e.id,
+        e.full_name AS fullName,
+        d.id AS departmentId,
+        d.name AS department
+      FROM employees e
+      INNER JOIN departments d ON d.id = e.department_id
+      ORDER BY e.full_name ASC
+    `,
+    );
+
+    return rows.map((row) => ({
+        id: row.id,
+        fullName: row.fullName,
+        departmentId: row.departmentId,
+        department: row.department,
+        value: row.fullName,
+        label: row.fullName,
+    }));
+}

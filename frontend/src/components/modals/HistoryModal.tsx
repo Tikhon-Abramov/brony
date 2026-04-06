@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { closeHistoryModal } from '../../features/uiSlice';
@@ -7,11 +7,7 @@ import type { BookingStatus } from '../../services/mocks';
 import Select from '../../shared/ui/Select';
 import TimeInput from '../../shared/ui/TimeInput';
 import SearchableSelect from '../../shared/ui/SearchableSelect';
-import {
-    departmentOptions,
-    employees,
-    employeeDepartmentMap,
-} from '../../services/referenceData';
+import { api, type EmployeeReferenceOption, type ReferenceOption } from '../../services/api';
 
 const statusOptions = [
     { value: 'all', label: 'Все' },
@@ -31,29 +27,64 @@ export default function HistoryModal() {
     const [time, setTime] = useState('09:00');
     const [status, setStatus] = useState<'all' | BookingStatus>('all');
     const [useTimeFilter, setUseTimeFilter] = useState(false);
+    const [departmentOptions, setDepartmentOptions] = useState<ReferenceOption[]>([]);
+    const [employeeOptions, setEmployeeOptions] = useState<EmployeeReferenceOption[]>([]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        let cancelled = false;
+
+        const loadReferences = async () => {
+            try {
+                const [departments, employees] = await Promise.all([
+                    api.getDepartments(),
+                    api.getEmployees(),
+                ]);
+
+                if (!cancelled) {
+                    setDepartmentOptions(departments);
+                    setEmployeeOptions(employees);
+                }
+            } catch (error) {
+                console.error('Failed to load reference data:', error);
+            }
+        };
+
+        loadReferences();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen]);
+
+    const employeeDepartmentMap = useMemo(() => {
+        return Object.fromEntries(
+            employeeOptions.map((employee) => [employee.fullName, employee.department]),
+        ) as Record<string, string>;
+    }, [employeeOptions]);
 
     const filteredEmployeeOptions = useMemo(() => {
         if (!department) {
-            return employees.map((employee) => ({
+            return employeeOptions.map((employee) => ({
                 value: employee.fullName,
                 label: employee.fullName,
             }));
         }
 
-        return employees
+        return employeeOptions
             .filter((employee) => employee.department === department)
             .map((employee) => ({
                 value: employee.fullName,
                 label: employee.fullName,
             }));
-    }, [department]);
+    }, [department, employeeOptions]);
 
     const filteredItems = useMemo(() => {
         return [...bookings]
             .filter((item) => {
                 const matchesFullName = !fullName || item.fullName === fullName;
-                const matchesDepartment =
-                    !department || (item.department ?? '') === department;
+                const matchesDepartment = !department || (item.department ?? '') === department;
                 const matchesDate = !date || item.date === date;
 
                 const matchesTime =
@@ -89,9 +120,7 @@ export default function HistoryModal() {
     const handleDepartmentChange = (value: string) => {
         setDepartment(value);
 
-        if (!value) {
-            return;
-        }
+        if (!value) return;
 
         if (fullName && employeeDepartmentMap[fullName] !== value) {
             setFullName('');
@@ -101,9 +130,7 @@ export default function HistoryModal() {
     const handleEmployeeChange = (value: string) => {
         setFullName(value);
 
-        if (!value) {
-            return;
-        }
+        if (!value) return;
 
         const employeeDepartment = employeeDepartmentMap[value];
 
@@ -128,7 +155,7 @@ export default function HistoryModal() {
                         <SearchableSelect
                             id="history-department"
                             value={department}
-                            onChange={(value) => handleDepartmentChange(value)}
+                            onChange={handleDepartmentChange}
                             options={departmentOptions}
                             placeholder="Все отделы"
                             searchPlaceholder="Найти отдел..."
@@ -141,7 +168,7 @@ export default function HistoryModal() {
                         <SearchableSelect
                             id="history-full-name"
                             value={fullName}
-                            onChange={(value) => handleEmployeeChange(value)}
+                            onChange={handleEmployeeChange}
                             options={filteredEmployeeOptions}
                             placeholder={
                                 department ? 'Сотрудники выбранного отдела' : 'Все сотрудники'

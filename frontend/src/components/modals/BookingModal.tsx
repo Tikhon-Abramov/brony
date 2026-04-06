@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import styled from 'styled-components';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { closeBookingModal } from '../../features/uiSlice';
-import { createBooking } from '../../features/bookingsSlice';
+import { addBooking } from '../../features/bookingsSlice';
 import {
     DAY_END_TIME,
     addMinutesToTime,
@@ -16,11 +16,7 @@ import {
 } from '../../utils/booking';
 import TimeInput from '../../shared/ui/TimeInput';
 import SearchableSelect from '../../shared/ui/SearchableSelect';
-import {
-    departmentOptions,
-    employees,
-    employeeDepartmentMap,
-} from '../../services/referenceData';
+import { api, type EmployeeReferenceOption, type ReferenceOption } from '../../services/api';
 
 function formatDurationInput(value: string) {
     const digits = value.replace(/\D/g, '').slice(0, 4);
@@ -56,22 +52,32 @@ export default function BookingModal() {
     const [startTime, setStartTime] = useState('10:00');
     const [duration, setDuration] = useState('00:30');
     const [error, setError] = useState('');
+    const [departmentOptions, setDepartmentOptions] = useState<ReferenceOption[]>([]);
+    const [employeeOptions, setEmployeeOptions] = useState<EmployeeReferenceOption[]>([]);
+    const [isLoadingRefs, setIsLoadingRefs] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const filteredEmployeeOptions = useMemo(() => {
         if (!department) {
-            return employees.map((employee) => ({
+            return employeeOptions.map((employee) => ({
                 value: employee.fullName,
                 label: employee.fullName,
             }));
         }
 
-        return employees
+        return employeeOptions
             .filter((employee) => employee.department === department)
             .map((employee) => ({
                 value: employee.fullName,
                 label: employee.fullName,
             }));
-    }, [department]);
+    }, [department, employeeOptions]);
+
+    const employeeDepartmentMap = useMemo(() => {
+        return Object.fromEntries(
+            employeeOptions.map((employee) => [employee.fullName, employee.department]),
+        ) as Record<string, string>;
+    }, [employeeOptions]);
 
     const endTime = useMemo(() => {
         if (!isDurationValid(duration)) return '';
@@ -81,10 +87,41 @@ export default function BookingModal() {
     useEffect(() => {
         if (!isOpen) return;
 
+        let cancelled = false;
+
+        const loadReferences = async () => {
+            try {
+                setIsLoadingRefs(true);
+
+                const [departments, employees] = await Promise.all([
+                    api.getDepartments(),
+                    api.getEmployees(),
+                ]);
+
+                if (!cancelled) {
+                    setDepartmentOptions(departments);
+                    setEmployeeOptions(employees);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setError(err instanceof Error ? err.message : 'Ошибка загрузки справочников');
+                }
+            } finally {
+                if (!cancelled) {
+                    setIsLoadingRefs(false);
+                }
+            }
+        };
+
         setDate(format(new Date(), 'yyyy-MM-dd'));
         setStartTime('10:00');
         setDuration('00:30');
         setError('');
+        loadReferences();
+
+        return () => {
+            cancelled = true;
+        };
     }, [isOpen]);
 
     if (!isOpen) return null;
@@ -97,9 +134,7 @@ export default function BookingModal() {
         setDepartment(value);
         setError('');
 
-        if (!value) {
-            return;
-        }
+        if (!value) return;
 
         if (fullName && employeeDepartmentMap[fullName] !== value) {
             setFullName('');
@@ -110,18 +145,15 @@ export default function BookingModal() {
         setFullName(value);
         setError('');
 
-        if (!value) {
-            return;
-        }
+        if (!value) return;
 
         const employeeDepartment = employeeDepartmentMap[value];
-
         if (employeeDepartment) {
             setDepartment(employeeDepartment);
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!fullName.trim() || !purpose.trim() || !department.trim()) {
@@ -157,14 +189,15 @@ export default function BookingModal() {
         });
 
         if (conflict) {
-            setError(
-                `Этот интервал уже занят: ${conflict.startTime} — ${conflict.endTime}`,
-            );
+            setError(`Этот интервал уже занят: ${conflict.startTime} — ${conflict.endTime}`);
             return;
         }
 
-        dispatch(
-            createBooking({
+        try {
+            setIsSubmitting(true);
+            setError('');
+
+            const createdBooking = await api.createBooking({
                 fullName: fullName.trim(),
                 purpose: purpose.trim(),
                 department: department.trim(),
@@ -172,10 +205,15 @@ export default function BookingModal() {
                 date,
                 startTime,
                 endTime,
-            }),
-        );
+            });
 
-        handleClose();
+            dispatch(addBooking(createdBooking));
+            handleClose();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Ошибка создания заявки');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -197,11 +235,12 @@ export default function BookingModal() {
                         <SearchableSelect
                             id="booking-department"
                             value={department}
-                            onChange={(value) => handleDepartmentChange(value)}
+                            onChange={handleDepartmentChange}
                             options={departmentOptions}
-                            placeholder="Выбери отдел"
+                            placeholder={isLoadingRefs ? 'Загрузка...' : 'Выбери отдел'}
                             searchPlaceholder="Найти отдел..."
                             allowClear
+                            disabled={isLoadingRefs}
                         />
                     </Field>
 
@@ -210,14 +249,19 @@ export default function BookingModal() {
                         <SearchableSelect
                             id="booking-full-name"
                             value={fullName}
-                            onChange={(value) => handleEmployeeChange(value)}
+                            onChange={handleEmployeeChange}
                             options={filteredEmployeeOptions}
                             placeholder={
-                                department ? 'Выбери сотрудника отдела' : 'Выбери сотрудника'
+                                isLoadingRefs
+                                    ? 'Загрузка...'
+                                    : department
+                                        ? 'Выбери сотрудника отдела'
+                                        : 'Выбери сотрудника'
                             }
                             searchPlaceholder="Найти сотрудника..."
                             emptyText="Сотрудники не найдены"
                             allowClear
+                            disabled={isLoadingRefs}
                         />
                     </Field>
 
@@ -283,19 +327,20 @@ export default function BookingModal() {
 
                     {endTime && isDurationValid(duration) && (
                         <InfoBox>
-                            Интервал бронирования: <strong>{startTime}</strong> —{' '}
-                            <strong>{endTime}</strong>
+                            Интервал бронирования: <strong>{startTime}</strong> — <strong>{endTime}</strong>
                         </InfoBox>
                     )}
 
                     {error && <ErrorText>{error}</ErrorText>}
 
                     <Actions>
-                        <GhostButton type="button" onClick={handleClose}>
+                        <GhostButton type="button" onClick={handleClose} disabled={isSubmitting}>
                             Отмена
                         </GhostButton>
 
-                        <PrimaryButton type="submit">Отправить заявку</PrimaryButton>
+                        <PrimaryButton type="submit" disabled={isSubmitting || isLoadingRefs}>
+                            {isSubmitting ? 'Отправка...' : 'Отправить заявку'}
+                        </PrimaryButton>
                     </Actions>
                 </Form>
             </ModalCard>
@@ -388,18 +433,9 @@ const Input = styled.input`
     background: ${({ theme }) => theme.input};
     color: ${({ theme }) => theme.text};
     font-size: 14px;
-    transition:
-            border-color 0.2s ease,
-            box-shadow 0.2s ease,
-            background 0.2s ease;
 
     &::placeholder {
         color: ${({ theme }) => theme.muted};
-    }
-
-    &:focus {
-        border-color: rgba(125, 220, 255, 0.24);
-        box-shadow: 0 0 0 3px rgba(125, 220, 255, 0.12);
     }
 
     &[type='date']::-webkit-calendar-picker-indicator {
@@ -449,6 +485,11 @@ const BaseButton = styled.button`
     cursor: pointer;
     border: 1px solid ${({ theme }) => theme.line};
     font-size: 14px;
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
 `;
 
 const GhostButton = styled(BaseButton)`
