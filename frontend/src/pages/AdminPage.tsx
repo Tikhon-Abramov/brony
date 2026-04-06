@@ -39,8 +39,8 @@ export default function AdminPage() {
         <Page>
             <Container>
                 <Header
-                    title="Заявки администратора"
-                    subtitle="Подтверждай или отклоняй заявки. Причина отказа обязательна."
+                    title="Меню администратора"
+                    subtitle="Подтверждайте или отклоняйте заявки. Причина отказа обязательна."
                     tertiaryAction={{
                         label: 'Выйти',
                         onClick: () => {

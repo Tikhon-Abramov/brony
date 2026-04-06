@@ -12,7 +12,6 @@ interface CreateBookingPayload {
     fullName: string;
     purpose: string;
     department?: string;
-    roomId: string;
     roomName: string;
     date: string;
     startTime: string;

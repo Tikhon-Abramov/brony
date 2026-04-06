@@ -16,14 +16,14 @@ export default function HomePage() {
 
             <Container>
                 <Header
-                    title="Brony"
-                    subtitle="Бронирование переговорки и быстрый просмотр текущей занятости"
+                    title="Бронирование"
+                    subtitle="Бронирование конференц-зала и быстрый просмотр текущей занятости"
                     tertiaryAction={{
                         label: 'Войти как админ',
                         onClick: () => dispatch(openAuthModal()),
                     }}
                     primaryAction={{
-                        label: '+ Забронировать',
+                        label: 'Забронировать',
                         onClick: () => dispatch(openBookingModal()),
                     }}
                 />

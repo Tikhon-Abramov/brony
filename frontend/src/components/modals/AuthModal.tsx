@@ -47,7 +47,6 @@ export default function AuthModal() {
                     <CloseButton onClick={handleClose}>✕</CloseButton>
                 </Top>
 
-                <Subtitle>Используй админский логин, чтобы подтверждать и отклонять заявки.</Subtitle>
 
                 <Form onSubmit={handleSubmit}>
                     <Field>

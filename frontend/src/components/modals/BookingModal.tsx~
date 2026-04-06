@@ -4,31 +4,43 @@ import styled from 'styled-components';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { closeBookingModal } from '../../features/uiSlice';
 import { createBooking } from '../../features/bookingsSlice';
-import Select from '../../shared/ui/Select';
 import {
     DAY_END_TIME,
-    TIME_SLOTS,
     addMinutesToTime,
-    clampStartTimeToAllowed,
     durationToMinutes,
     findBookingConflict,
-    getMinStartTimeForDate,
     isDateTimeInPast,
     isDurationValid,
     isEndTimeWithinDay,
     isTimeRangeValid,
-    timeToMinutes,
 } from '../../utils/booking';
-import {
-    formatDurationInput,
-    normalizeDuration,
-} from '../../utils/timeMask';
+import TimeInput from '../../shared/ui/TimeInput';
+
+function formatDurationInput(value: string) {
+    const digits = value.replace(/\D/g, '').slice(0, 4);
+
+    if (digits.length === 0) return '';
+    if (digits.length <= 2) return `${digits}:`;
+
+    return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+}
+
+function normalizeDuration(value: string) {
+    const digits = value.replace(/\D/g, '').slice(0, 4);
+
+    if (digits.length === 0) {
+        return '00:30';
+    }
+
+    const hours = digits.slice(0, 2).padEnd(2, '0');
+    const minutes = digits.slice(2, 4).padEnd(2, '0');
+
+    return `${hours}:${minutes}`;
+}
 
 export default function BookingModal() {
     const dispatch = useAppDispatch();
     const isOpen = useAppSelector((state) => state.ui.bookingModalOpen);
-    const selectedDate = useAppSelector((state) => state.bookings.selectedDate);
-    const selectedTime = useAppSelector((state) => state.bookings.selectedTime);
     const bookings = useAppSelector((state) => state.bookings.items);
 
     const [fullName, setFullName] = useState('');
@@ -39,83 +51,24 @@ export default function BookingModal() {
     const [duration, setDuration] = useState('00:30');
     const [error, setError] = useState('');
 
-    const minStartTime = useMemo(() => getMinStartTimeForDate(date), [date]);
-
-    const startTimeOptions = useMemo(() => {
-        return TIME_SLOTS.filter((slot) => timeToMinutes(slot) >= timeToMinutes(minStartTime)).map(
-            (slot) => ({
-                value: slot,
-                label: slot,
-            }),
-        );
-    }, [minStartTime]);
-
-    const computedEndTime = useMemo(() => {
-        if (!isDurationValid(duration)) {
-            return '';
-        }
-
+    const endTime = useMemo(() => {
+        if (!isDurationValid(duration)) return '';
         return addMinutesToTime(startTime, durationToMinutes(duration));
     }, [startTime, duration]);
 
     useEffect(() => {
         if (!isOpen) return;
 
-        const nextDate = selectedDate || format(new Date(), 'yyyy-MM-dd');
-        const rawStartTime = selectedTime || '10:00';
-        const nextStartTime = clampStartTimeToAllowed(nextDate, rawStartTime);
-
-        setDate(nextDate);
-        setStartTime(nextStartTime);
+        setDate(format(new Date(), 'yyyy-MM-dd'));
+        setStartTime('10:00');
         setDuration('00:30');
         setError('');
-    }, [isOpen, selectedDate, selectedTime]);
-
-    useEffect(() => {
-        setStartTime((prev) => {
-            const clamped = clampStartTimeToAllowed(date, prev);
-            const existsInOptions = TIME_SLOTS.includes(clamped);
-
-            if (existsInOptions) {
-                return clamped;
-            }
-
-            const firstAvailable =
-                TIME_SLOTS.find((slot) => timeToMinutes(slot) >= timeToMinutes(minStartTime)) ||
-                DAY_END_TIME;
-
-            return firstAvailable;
-        });
-    }, [date, minStartTime]);
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
-    const conflict =
-        computedEndTime &&
-        isTimeRangeValid(startTime, computedEndTime) &&
-        isEndTimeWithinDay(computedEndTime)
-            ? findBookingConflict(bookings, {
-                date,
-                roomId: 'room-main',
-                startTime,
-                endTime: computedEndTime,
-            })
-            : undefined;
-
     const handleClose = () => {
         dispatch(closeBookingModal());
-        setFullName('');
-        setPurpose('');
-        setDepartment('');
-        setDate(selectedDate || format(new Date(), 'yyyy-MM-dd'));
-        setStartTime(
-            clampStartTimeToAllowed(
-                selectedDate || format(new Date(), 'yyyy-MM-dd'),
-                selectedTime || '10:00',
-            ),
-        );
-        setDuration('00:30');
-        setError('');
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -127,40 +80,35 @@ export default function BookingModal() {
         }
 
         if (!isDurationValid(duration)) {
-            setError('Укажи длительность в формате ЧЧ:ММ, например 01:30');
-            return;
-        }
-
-        if (timeToMinutes(startTime) < timeToMinutes(minStartTime)) {
-            setError('Время начала не может быть меньше текущего времени');
+            setError('Укажи длительность в формате ЧЧ:ММ');
             return;
         }
 
         if (isDateTimeInPast(date, startTime)) {
-            setError('Дата и время начала бронирования не могут быть в прошлом');
+            setError('Нельзя выбрать прошедшее время');
             return;
         }
 
-        if (!computedEndTime || !isTimeRangeValid(startTime, computedEndTime)) {
-            setError('Проверь длительность бронирования');
+        if (!isTimeRangeValid(startTime, endTime)) {
+            setError('Время окончания должно быть позже времени начала');
             return;
         }
 
-        if (!isEndTimeWithinDay(computedEndTime)) {
+        if (!isEndTimeWithinDay(endTime)) {
             setError(`Бронирование не должно выходить за пределы ${DAY_END_TIME}`);
             return;
         }
 
-        const currentConflict = findBookingConflict(bookings, {
+        const conflict = findBookingConflict(bookings, {
             date,
             roomId: 'room-main',
             startTime,
-            endTime: computedEndTime,
+            endTime,
         });
 
-        if (currentConflict) {
+        if (conflict) {
             setError(
-                `Этот слот пересекается с заявкой "${currentConflict.purpose}" (${currentConflict.startTime} — ${currentConflict.endTime})`,
+                `Этот интервал уже занят: ${conflict.startTime} — ${conflict.endTime}`,
             );
             return;
         }
@@ -170,11 +118,10 @@ export default function BookingModal() {
                 fullName: fullName.trim(),
                 purpose: purpose.trim(),
                 department: department.trim(),
-                roomId: 'room-main',
                 roomName: 'Конференц-зал',
                 date,
                 startTime,
-                endTime: computedEndTime,
+                endTime,
             }),
         );
 
@@ -186,10 +133,7 @@ export default function BookingModal() {
             <ModalCard onClick={(e) => e.stopPropagation()}>
                 <Top>
                     <HeaderBlock>
-                        <Title>Забронировать переговорную</Title>
-                        <Subtitle>
-                            Выбери дату, время начала и длительность. Заявка уйдёт на согласование.
-                        </Subtitle>
+                        <Title>Новое бронирование</Title>
                     </HeaderBlock>
 
                     <CloseButton type="button" onClick={handleClose} aria-label="Закрыть">
@@ -198,13 +142,23 @@ export default function BookingModal() {
                 </Top>
 
                 <Form onSubmit={handleSubmit}>
+
+                    <Field>
+                        <Label htmlFor="booking-department">Отдел</Label>
+                        <Input
+                            id="booking-department"
+                            value={department}
+                            onChange={(e) => setDepartment(e.target.value)}
+                        />
+                    </Field>
+
                     <Field>
                         <Label htmlFor="booking-full-name">ФИО</Label>
                         <Input
                             id="booking-full-name"
                             value={fullName}
                             onChange={(e) => setFullName(e.target.value)}
-                            placeholder="Например, Алексей Смирнов"
+                            placeholder="Иванов Иван Иванович"
                         />
                     </Field>
 
@@ -214,19 +168,11 @@ export default function BookingModal() {
                             id="booking-purpose"
                             value={purpose}
                             onChange={(e) => setPurpose(e.target.value)}
-                            placeholder="Например, Планёрка команды"
+                            placeholder="Например, Распределение обязанностей"
                         />
                     </Field>
 
-                    <Field>
-                        <Label htmlFor="booking-department">Отдел</Label>
-                        <Input
-                            id="booking-department"
-                            value={department}
-                            onChange={(e) => setDepartment(e.target.value)}
-                            placeholder="Например, Маркетинг"
-                        />
-                    </Field>
+
 
                     <DoubleGrid>
                         <Field>
@@ -245,15 +191,15 @@ export default function BookingModal() {
 
                         <Field>
                             <Label htmlFor="booking-start-time">Время начала</Label>
-                            <Select
+                            <TimeInput
                                 id="booking-start-time"
                                 value={startTime}
                                 onChange={(value) => {
                                     setStartTime(value);
                                     setError('');
                                 }}
-                                options={startTimeOptions}
-                                placeholder="Выбрать время"
+                                minHour={9}
+                                maxHour={23}
                             />
                         </Field>
                     </DoubleGrid>
@@ -270,31 +216,19 @@ export default function BookingModal() {
                                 setError('');
                             }}
                             onBlur={() => setDuration(normalizeDuration(duration))}
-                            placeholder="Например, 01:30"
+                            placeholder="01:30"
+                            maxLength={5}
                         />
                         <HelperText>
                             Формат: ЧЧ:ММ. Например, 00:30, 01:00 или 02:30.
                         </HelperText>
                     </Field>
 
-                    {computedEndTime && isDurationValid(duration) && (
+                    {endTime && isDurationValid(duration) && (
                         <InfoBox>
                             Интервал бронирования: <strong>{startTime}</strong> —{' '}
-                            <strong>{computedEndTime}</strong>
+                            <strong>{endTime}</strong>
                         </InfoBox>
-                    )}
-
-                    {computedEndTime && !isEndTimeWithinDay(computedEndTime) && (
-                        <ErrorText>
-                            Бронирование не должно выходить за пределы {DAY_END_TIME}
-                        </ErrorText>
-                    )}
-
-                    {conflict && (
-                        <WarningBox>
-                            Этот интервал уже занят: {conflict.purpose} · {conflict.startTime} —{' '}
-                            {conflict.endTime}
-                        </WarningBox>
                     )}
 
                     {error && <ErrorText>{error}</ErrorText>}
@@ -304,9 +238,7 @@ export default function BookingModal() {
                             Отмена
                         </GhostButton>
 
-                        <PrimaryButton type="submit">
-                            Отправить заявку
-                        </PrimaryButton>
+                        <PrimaryButton type="submit">Отправить заявку</PrimaryButton>
                     </Actions>
                 </Form>
             </ModalCard>
@@ -315,33 +247,33 @@ export default function BookingModal() {
 }
 
 const Overlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(8, 10, 16, 0.68);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  z-index: 1100;
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 10, 16, 0.68);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 1100;
 `;
 
 const ModalCard = styled.div`
-  width: 100%;
-  max-width: 620px;
-  border-radius: 28px;
-  border: 1px solid ${({ theme }) => theme.line};
-  background: ${({ theme }) => theme.panel};
-  box-shadow: ${({ theme }) => theme.shadow};
-  padding: 24px;
+    width: 100%;
+    max-width: 620px;
+    border-radius: 28px;
+    border: 1px solid ${({ theme }) => theme.line};
+    background: ${({ theme }) => theme.panel};
+    box-shadow: ${({ theme }) => theme.shadow};
+    padding: 24px;
 `;
 
 const Top = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
 `;
 
 const HeaderBlock = styled.div`
@@ -370,22 +302,6 @@ const CloseButton = styled.button`
     color: ${({ theme }) => theme.text};
     border: 1px solid ${({ theme }) => theme.line};
     cursor: pointer;
-    transition:
-            border-color 0.2s ease,
-            background 0.2s ease,
-            transform 0.2s ease;
-
-    &:hover {
-        border-color: rgba(125, 220, 255, 0.22);
-        background: ${({ theme }) =>
-                theme.mode === 'dark'
-                        ? 'rgba(255,255,255,0.06)'
-                        : 'rgba(255,255,255,0.84)'};
-    }
-
-    &:active {
-        transform: translateY(1px);
-    }
 `;
 
 const Form = styled.form`
@@ -462,16 +378,6 @@ const InfoBox = styled.div`
     line-height: 1.5;
 `;
 
-const WarningBox = styled.div`
-    padding: 12px 14px;
-    border-radius: 16px;
-    background: rgba(245, 158, 11, 0.12);
-    border: 1px solid rgba(245, 158, 11, 0.18);
-    color: #fcd34d;
-    font-size: 14px;
-    line-height: 1.5;
-`;
-
 const ErrorText = styled.div`
     font-size: 14px;
     line-height: 1.5;
@@ -493,26 +399,11 @@ const BaseButton = styled.button`
     cursor: pointer;
     border: 1px solid ${({ theme }) => theme.line};
     font-size: 14px;
-    transition:
-            opacity 0.2s ease,
-            transform 0.2s ease,
-            border-color 0.2s ease,
-            background 0.2s ease;
-
-    &:disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-        transform: none;
-    }
 `;
 
 const GhostButton = styled(BaseButton)`
     background: ${({ theme }) => theme.input};
     color: ${({ theme }) => theme.text};
-
-    &:hover {
-        border-color: rgba(125, 220, 255, 0.22);
-    }
 `;
 
 const PrimaryButton = styled(BaseButton)`
@@ -520,8 +411,4 @@ const PrimaryButton = styled(BaseButton)`
     color: ${({ theme }) => (theme.mode === 'dark' ? '#c8efff' : '#0f4d73')};
     border-color: rgba(125, 220, 255, 0.28);
     font-weight: 600;
-
-    &:hover {
-        filter: brightness(1.03);
-    }
 `;

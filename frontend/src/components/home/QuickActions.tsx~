@@ -18,7 +18,15 @@ export default function QuickActions() {
         dispatch(setSelectedTime(nearestFreeSlot));
     };
 
-    const handleSearchMyBookings = () => {
+    const handleFindMyBookings = () => {
+        const value = window.prompt('Введите ФИО, чтобы найти свои заявки');
+
+        if (!value) return;
+
+        dispatch(setSearch(value.trim()));
+    };
+
+    const handleClearSearch = () => {
         dispatch(setSearch(''));
     };
 
@@ -41,53 +49,55 @@ export default function QuickActions() {
                         : 'Свободных слотов нет'}
                 </QuickItem>
 
-                <QuickItem onClick={handleSearchMyBookings}>
-                    Очистить поиск по истории
+                <QuickItem onClick={handleFindMyBookings}>
+                    Найти мои заявки по ФИО
                 </QuickItem>
+
+                <QuickItem onClick={handleClearSearch}>Очистить поиск по истории</QuickItem>
             </QuickList>
         </SectionCard>
     );
 }
 
 const SectionCard = styled.section`
-  ${glassCard};
-  padding: 20px;
+    ${glassCard};
+    padding: 20px;
 `;
 
 const SectionTitle = styled.h2`
-  margin: 0 0 16px;
-  font-size: 22px;
-  font-weight: 700;
+    margin: 0 0 16px;
+    font-size: 22px;
+    font-weight: 700;
 
-  @media (max-width: 700px) {
-    font-size: 18px;
-  }
+    @media (max-width: 700px) {
+        font-size: 18px;
+    }
 `;
 
 const QuickList = styled.div`
-  display: grid;
-  gap: 12px;
+    display: grid;
+    gap: 12px;
 `;
 
 const QuickItem = styled.button`
-  padding: 16px;
-  border-radius: 18px;
-  border: 1px solid ${({ theme }) => theme.line};
-  background: ${({ theme }) => theme.input};
-  color: ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255,255,255,.82)' : '#24425c'};
-  text-align: left;
-  cursor: pointer;
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
+    padding: 16px;
+    border-radius: 18px;
+    border: 1px solid ${({ theme }) => theme.line};
+    background: ${({ theme }) => theme.input};
+    color: ${({ theme }) =>
+            theme.mode === 'dark' ? 'rgba(255,255,255,.82)' : '#24425c'};
+    text-align: left;
+    cursor: pointer;
+    transition:
+            opacity 0.2s ease,
+            transform 0.2s ease;
 
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-  }
+    &:hover:not(:disabled) {
+        transform: translateY(-1px);
+    }
 
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
+    &:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
 `;

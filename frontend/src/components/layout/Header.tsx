@@ -2,6 +2,8 @@ import styled from 'styled-components';
 import { glassCard } from '../../styles/theme';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { toggleTheme } from '../../features/themeSlice';
+import { CiLight } from "react-icons/ci";
+import { MdOutlineNightlight } from "react-icons/md";
 
 interface HeaderAction {
     label: string;
@@ -39,7 +41,7 @@ export default function Header({
 
             <Actions>
                 <ThemeButton type="button" onClick={() => dispatch(toggleTheme())}>
-                    {themeMode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+                    {themeMode === 'dark' ? <CiLight /> : <MdOutlineNightlight />}
                 </ThemeButton>
 
                 {tertiaryAction && (

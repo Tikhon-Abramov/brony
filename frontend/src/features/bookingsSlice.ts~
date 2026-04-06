@@ -1,5 +1,6 @@
 import { createSlice, nanoid } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
+import { format } from 'date-fns';
 import { mockBookings, type BookingItem, type BookingStatus } from '../services/mocks';
 
 interface BookingFilters {
@@ -27,7 +28,7 @@ interface BookingsState {
 
 const initialState: BookingsState = {
     items: mockBookings,
-    selectedDate: '2026-04-03',
+    selectedDate: format(new Date(), 'yyyy-MM-dd'),
     selectedTime: '10:00',
     filters: {
         search: '',
@@ -42,15 +43,19 @@ const bookingsSlice = createSlice({
         setSelectedDate(state, action: PayloadAction<string>) {
             state.selectedDate = action.payload;
         },
+
         setSelectedTime(state, action: PayloadAction<string>) {
             state.selectedTime = action.payload;
         },
+
         setSearch(state, action: PayloadAction<string>) {
             state.filters.search = action.payload;
         },
+
         setStatusFilter(state, action: PayloadAction<'all' | BookingStatus>) {
             state.filters.status = action.payload;
         },
+
         createBooking(state, action: PayloadAction<CreateBookingPayload>) {
             const now = new Date().toISOString();
 
@@ -62,19 +67,20 @@ const bookingsSlice = createSlice({
                 updatedAt: now,
             });
         },
+
         approveBooking(state, action: PayloadAction<string>) {
             const booking = state.items.find((item) => item.id === action.payload);
+
             if (!booking) return;
 
             booking.status = 'approved';
             booking.rejectionReason = undefined;
             booking.updatedAt = new Date().toISOString();
         },
-        rejectBooking(
-            state,
-            action: PayloadAction<{ id: string; reason: string }>,
-        ) {
+
+        rejectBooking(state, action: PayloadAction<{ id: string; reason: string }>) {
             const booking = state.items.find((item) => item.id === action.payload.id);
+
             if (!booking) return;
 
             booking.status = 'rejected';

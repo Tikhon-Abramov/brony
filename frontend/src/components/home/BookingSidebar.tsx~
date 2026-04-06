@@ -27,7 +27,7 @@ export default function BookingSidebar() {
                         id="search"
                         value={filters.search}
                         onChange={(e) => dispatch(setSearch(e.target.value))}
-                        placeholder="Поиск..."
+                        placeholder="Например, Алексей или Общий отдел"
                     />
                 </Field>
 

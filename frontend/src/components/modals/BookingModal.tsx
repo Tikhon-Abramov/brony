@@ -118,7 +118,6 @@ export default function BookingModal() {
                 fullName: fullName.trim(),
                 purpose: purpose.trim(),
                 department: department.trim(),
-                roomId: 'room-main',
                 roomName: 'Конференц-зал',
                 date,
                 startTime,
@@ -134,10 +133,7 @@ export default function BookingModal() {
             <ModalCard onClick={(e) => e.stopPropagation()}>
                 <Top>
                     <HeaderBlock>
-                        <Title>Забронировать переговорную</Title>
-                        <Subtitle>
-                            Укажи дату, время начала и длительность бронирования.
-                        </Subtitle>
+                        <Title>Новое бронирование</Title>
                     </HeaderBlock>
 
                     <CloseButton type="button" onClick={handleClose} aria-label="Закрыть">
@@ -146,13 +142,23 @@ export default function BookingModal() {
                 </Top>
 
                 <Form onSubmit={handleSubmit}>
+
+                    <Field>
+                        <Label htmlFor="booking-department">Отдел</Label>
+                        <Input
+                            id="booking-department"
+                            value={department}
+                            onChange={(e) => setDepartment(e.target.value)}
+                        />
+                    </Field>
+
                     <Field>
                         <Label htmlFor="booking-full-name">ФИО</Label>
                         <Input
                             id="booking-full-name"
                             value={fullName}
                             onChange={(e) => setFullName(e.target.value)}
-                            placeholder="Например, Алексей Смирнов"
+                            placeholder="Иванов Иван Иванович"
                         />
                     </Field>
 
@@ -162,19 +168,11 @@ export default function BookingModal() {
                             id="booking-purpose"
                             value={purpose}
                             onChange={(e) => setPurpose(e.target.value)}
-                            placeholder="Например, Планёрка команды"
+                            placeholder="Например, Распределение обязанностей"
                         />
                     </Field>
 
-                    <Field>
-                        <Label htmlFor="booking-department">Отдел</Label>
-                        <Input
-                            id="booking-department"
-                            value={department}
-                            onChange={(e) => setDepartment(e.target.value)}
-                            placeholder="Например, Маркетинг"
-                        />
-                    </Field>
+
 
                     <DoubleGrid>
                         <Field>
@@ -288,12 +286,7 @@ const Title = styled.h2`
     line-height: 1.2;
 `;
 
-const Subtitle = styled.p`
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.5;
-    color: ${({ theme }) => theme.muted};
-`;
+
 
 const CloseButton = styled.button`
     width: 38px;

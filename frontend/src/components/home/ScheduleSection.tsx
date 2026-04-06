@@ -16,10 +16,7 @@ export default function ScheduleSection() {
         <SectionCard>
             <SectionHeader>
                 <div>
-                    <SectionTitle>Расписание и выбор времени</SectionTitle>
-                    <Subtitle>
-                        Наведи на занятую бронь, чтобы увидеть точное время начала и окончания
-                    </Subtitle>
+                    <SectionTitle>Расписание</SectionTitle>
                 </div>
             </SectionHeader>
 
@@ -29,7 +26,7 @@ export default function ScheduleSection() {
 
             <BottomBlock>
                 <BookingsCard>
-                    <InfoTitle>Брони на текущий день</InfoTitle>
+                    <InfoTitle>Брони на сегодня</InfoTitle>
 
                     {todayBookings.length === 0 ? (
                         <InfoText>На текущий день заявок пока нет</InfoText>
