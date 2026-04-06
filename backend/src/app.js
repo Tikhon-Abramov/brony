@@ -4,6 +4,7 @@ import { env } from './config/env.js';
 import authRoutes from './routes/auth.routes.js';
 import bookingsRoutes from './routes/bookings.routes.js';
 import referenceRoutes from './routes/reference.routes.js';
+import eventsRoutes from './routes/events.routes.js';
 import { notFoundMiddleware } from './middleware/not-found.middleware.js';
 import { errorMiddleware } from './middleware/error.middleware.js';
 
@@ -26,6 +27,7 @@ export function createApp() {
     app.use('/api/auth', authRoutes);
     app.use('/api/bookings', bookingsRoutes);
     app.use('/api/reference', referenceRoutes);
+    app.use('/api/events', eventsRoutes);
 
     app.use(notFoundMiddleware);
     app.use(errorMiddleware);

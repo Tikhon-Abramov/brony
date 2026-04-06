@@ -8,6 +8,16 @@ interface BookingFilters {
     status: 'all' | BookingStatus;
 }
 
+interface CreateBookingPayload {
+    fullName: string;
+    purpose: string;
+    department?: string;
+    roomName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+}
+
 interface BookingsState {
     items: BookingItem[];
     selectedDate: string;
@@ -77,3 +87,4 @@ export const {
 } = bookingsSlice.actions;
 
 export default bookingsSlice.reducer;
+export type { CreateBookingPayload };
