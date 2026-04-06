@@ -38,8 +38,12 @@ function getApproxEndIndexExclusive(endTime: string) {
     for (let i = 0; i < TIME_SLOTS.length; i += 1) {
         const current = timeToMinutes(TIME_SLOTS[i]);
 
-        if (endMinutes <= current) {
+        if (endMinutes < current) {
             return i;
+        }
+
+        if (endMinutes === current) {
+            return Math.min(i + 1, TIME_SLOTS.length);
         }
     }
 
@@ -77,7 +81,9 @@ export default function ScheduleGrid({ bookings }: ScheduleGridProps) {
         <Wrap>
             <Grid $columns={TIME_SLOTS.length}>
                 {TIME_SLOTS.map((slot) => (
-                    <HeaderCell key={`header-${slot}`}>{slot}</HeaderCell>
+                    <HeaderCell key={`header-${slot}`} data-time-slot={slot}>
+                        {slot}
+                    </HeaderCell>
                 ))}
 
                 {TIME_SLOTS.map((slot, index) => {
@@ -97,7 +103,7 @@ export default function ScheduleGrid({ bookings }: ScheduleGridProps) {
                             >
                                 <BookingPill $status={booking.status}>
                                     <BookingContent>
-                                        <BookingTitle>{booking.purpose}</BookingTitle>
+                                        <BookingTitle title={booking.purpose}>{booking.purpose}</BookingTitle>
                                         <BookingMeta>
                                             {booking.startTime} — {booking.endTime}
                                         </BookingMeta>
@@ -155,6 +161,7 @@ const HeaderCell = styled.div`
 const BookingCell = styled.div`
     ${baseCell};
     background: transparent;
+    min-width: 0;
 `;
 
 const FreeCell = styled.div`
@@ -162,12 +169,14 @@ const FreeCell = styled.div`
     background: transparent;
 `;
 
-const BookingPill = styled.div<{ $status: 'pending' | 'approved' | 'rejected' }>`
+const BookingPill = styled.div<{ $status: 'pending' | 'approved' | 'rejected' | 'unreviewed' }>`
     position: relative;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     height: 100%;
     min-height: 86px;
+    width: 100%;
+    max-width: 100%;
     border-radius: 18px;
     padding: 12px 14px;
     overflow: visible;
@@ -180,12 +189,19 @@ const BookingPill = styled.div<{ $status: 'pending' | 'approved' | 'rejected' }>
             return 'linear-gradient(90deg, rgba(251,113,133,.18), rgba(244,114,182,.14))';
         }
 
+        if ($status === 'unreviewed') {
+            return theme.mode === 'dark'
+                    ? 'linear-gradient(90deg, rgba(148,163,184,.18), rgba(100,116,139,.16))'
+                    : 'linear-gradient(90deg, rgba(148,163,184,.16), rgba(203,213,225,.22))';
+        }
+
         return theme.bookingGradient;
     }};
     border: 1px solid
     ${({ $status }) => {
         if ($status === 'pending') return 'rgba(250,204,21,.16)';
         if ($status === 'rejected') return 'rgba(251,113,133,.18)';
+        if ($status === 'unreviewed') return 'rgba(148,163,184,.22)';
         return 'rgba(253,186,255,.15)';
     }};
     box-shadow: 0 8px 18px rgba(34, 158, 217, 0.09);
@@ -199,20 +215,33 @@ const BookingPill = styled.div<{ $status: 'pending' | 'approved' | 'rejected' }>
 
 const BookingContent = styled.div`
     min-width: 0;
+    width: 100%;
+    max-width: 180px;
 `;
 
 const BookingTitle = styled.div`
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    text-overflow: ellipsis;
+    line-height: 1.25;
+    max-height: calc(1.25em * 4);
     font-size: 13px;
     font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 `;
 
 const BookingMeta = styled.div`
-    margin-top: 4px;
+    margin-top: 6px;
     font-size: 12px;
     color: ${({ theme }) => theme.muted};
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 `;
 
 const Tooltip = styled.div`

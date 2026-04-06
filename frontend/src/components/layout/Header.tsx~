@@ -41,7 +41,7 @@ export default function Header({
 
             <Actions>
                 <ThemeButton type="button" onClick={() => dispatch(toggleTheme())}>
-                    {themeMode === 'dark' ? <CiLight size={18}/> : <MdOutlineNightlight size={18}/>}
+                    {themeMode === 'dark' ? <CiLight size={18}/> : <MdOutlineNightlight size={12}/>}
                 </ThemeButton>
 
                 {tertiaryAction && (

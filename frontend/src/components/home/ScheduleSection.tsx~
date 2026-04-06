@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import styled from 'styled-components';
 import { useAppSelector } from '../../hooks/redux';
 import {
@@ -14,60 +14,58 @@ export default function ScheduleSection() {
     const todayBookings = useAppSelector(selectFilteredTodayBookings);
     const gridScrollerRef = useRef<HTMLDivElement | null>(null);
 
-    const targetSlot = useMemo(() => {
+    const targetSlotIndex = useMemo(() => {
         const now = new Date();
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
         const targetMinutes = Math.max(timeToMinutes('09:00'), currentMinutes - 60);
 
-        let slot = TIME_SLOTS[0];
+        let index = 0;
 
         for (let i = 0; i < TIME_SLOTS.length; i += 1) {
             const slotMinutes = timeToMinutes(TIME_SLOTS[i]);
 
             if (slotMinutes <= targetMinutes) {
-                slot = TIME_SLOTS[i];
+                index = i;
             } else {
                 break;
             }
         }
 
-        return slot;
+        return index;
     }, []);
 
-    useLayoutEffect(() => {
+    useEffect(() => {
         const container = gridScrollerRef.current;
         if (!container) return;
 
-        let attempts = 0;
-        let rafId = 0;
-        let timeoutId = 0;
+        let frame1 = 0;
+        let frame2 = 0;
 
-        const tryScroll = () => {
-            const targetEl = container.querySelector<HTMLElement>(
-                `[data-time-slot="${targetSlot}"]`,
-            );
+        const scrollToTarget = () => {
+            const grid = container.firstElementChild as HTMLElement | null;
+            if (!grid) return;
 
-            if (!targetEl) {
-                if (attempts < 10) {
-                    attempts += 1;
-                    timeoutId = window.setTimeout(() => {
-                        rafId = window.requestAnimationFrame(tryScroll);
-                    }, 80);
-                }
-                return;
-            }
+            const headerCells = grid.querySelectorAll('[data-time-header="true"]');
+            const firstHeader = headerCells[0] as HTMLElement | undefined;
 
-            const left = Math.max(0, targetEl.offsetLeft - targetEl.offsetWidth);
-            container.scrollLeft = left;
+            if (!firstHeader) return;
+
+            const columnWidth = firstHeader.offsetWidth;
+            if (!columnWidth) return;
+
+            const targetLeft = Math.max(0, targetSlotIndex * columnWidth - columnWidth);
+            container.scrollLeft = targetLeft;
         };
 
-        rafId = window.requestAnimationFrame(tryScroll);
+        frame1 = requestAnimationFrame(() => {
+            frame2 = requestAnimationFrame(scrollToTarget);
+        });
 
         return () => {
-            window.cancelAnimationFrame(rafId);
-            window.clearTimeout(timeoutId);
+            cancelAnimationFrame(frame1);
+            cancelAnimationFrame(frame2);
         };
-    }, [targetSlot, bookingsForSelectedDate.length]);
+    }, [targetSlotIndex, bookingsForSelectedDate.length]);
 
     return (
         <SectionCard>
