@@ -48,11 +48,11 @@ export default function ScheduleSection() {
             );
 
             if (!targetEl) {
-                if (attempts < 10) {
+                if (attempts < 12) {
                     attempts += 1;
                     timeoutId = window.setTimeout(() => {
                         rafId = window.requestAnimationFrame(tryScroll);
-                    }, 80);
+                    }, 100);
                 }
                 return;
             }
@@ -61,7 +61,9 @@ export default function ScheduleSection() {
             container.scrollLeft = left;
         };
 
-        rafId = window.requestAnimationFrame(tryScroll);
+        rafId = window.requestAnimationFrame(() => {
+            tryScroll();
+        });
 
         return () => {
             window.cancelAnimationFrame(rafId);

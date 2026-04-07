@@ -128,10 +128,10 @@ export default function ScheduleGrid({ bookings }: ScheduleGridProps) {
 }
 
 const Wrap = styled.div`
+    min-width: max-content;
     border: 1px solid ${({ theme }) => theme.line};
     border-radius: 24px;
-    overflow-x: auto;
-    overflow-y: visible;
+    overflow: hidden;
     background: ${({ theme }) => theme.panel2};
 `;
 
@@ -139,6 +139,7 @@ const Grid = styled.div<{ $columns: number }>`
     display: grid;
     grid-template-columns: repeat(${({ $columns }) => $columns}, minmax(72px, 1fr));
     min-width: max-content;
+    background: ${({ theme }) => theme.panel2};
 `;
 
 const baseCell = css`
