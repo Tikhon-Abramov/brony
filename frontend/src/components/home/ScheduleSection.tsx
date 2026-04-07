@@ -233,9 +233,9 @@ const StatusBadge = styled.span<{ $status: 'pending' | 'approved' | 'rejected' |
         return 'rgba(245,158,11,.16)';
     }};
     color: ${({ $status }) => {
-        if ($status === 'approved') return '#86efac';
-        if ($status === 'rejected') return '#fda4af';
-        if ($status === 'unreviewed') return '#cbd5e1';
-        return '#fcd34d';
+        if ($status === 'approved') return '#5da577';
+        if ($status === 'rejected') return '#ae7078';
+        if ($status === 'unreviewed') return '#848a91';
+        return '#9a812f';
     }};
 `;

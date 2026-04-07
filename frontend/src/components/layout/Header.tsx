@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { toggleTheme } from '../../features/themeSlice';
 import { CiLight } from "react-icons/ci";
 import { MdOutlineNightlight } from "react-icons/md";
+import logo from '../../assets/logo.png';
 
 interface HeaderAction {
     label: string;
@@ -31,7 +32,7 @@ export default function Header({
     return (
         <HeaderCard>
             <Brand>
-                <Logo>T</Logo>
+                <Logo><img src={logo}/></Logo>
 
                 <div>
                     <Title>{title}</Title>
@@ -94,14 +95,17 @@ const Logo = styled.div`
     width: 42px;
     height: 42px;
     border-radius: 16px;
-    background: ${({ theme }) => theme.telegram};
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 800;
-    font-size: 20px;
-    color: white;
+    overflow: hidden; // 👈 важно (обрезает лишнее)
     box-shadow: 0 10px 24px rgba(34, 158, 217, 0.25);
+
+    img {
+        width: 70%;
+        height: 70%;
+        object-fit: contain; // 👈 сохраняет пропорции
+    }
 `;
 
 const Title = styled.h1`

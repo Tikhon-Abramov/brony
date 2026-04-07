@@ -1,14 +1,18 @@
 import styled from 'styled-components';
 import type { BookingItem } from '../../services/mocks';
-import { BOOKING_STATUSES } from '../../utils/constants';
-import { formatDateTimeLabel } from '../../utils/date';
-import { glassCard } from '../../styles/theme';
 
 interface RequestCardProps {
     booking: BookingItem;
     onApprove: (id: string) => void;
     onReject: (id: string) => void;
 }
+
+const BOOKING_STATUSES: Record<BookingItem['status'], string> = {
+    pending: 'На согласовании',
+    approved: 'Подтверждена',
+    rejected: 'Отклонена',
+    unreviewed: 'Не рассмотрено',
+};
 
 export default function RequestCard({
                                         booking,
@@ -17,89 +21,127 @@ export default function RequestCard({
                                     }: RequestCardProps) {
     return (
         <Card>
-            <Top>
-                <Name>{booking.fullName}</Name>
-                <PendingBadge>{BOOKING_STATUSES[booking.status]}</PendingBadge>
-            </Top>
+            <TopRow>
+                <TitleBlock>
+                    <Name>{booking.fullName}</Name>
+                    <PendingBadge $status={booking.status}>
+                        {BOOKING_STATUSES[booking.status]}
+                    </PendingBadge>
+                </TitleBlock>
+
+                <Actions>
+                    <ApproveButton type="button" onClick={() => onApprove(booking.id)}>
+                        Подтвердить
+                    </ApproveButton>
+
+                    <RejectButton type="button" onClick={() => onReject(booking.id)}>
+                        Отклонить
+                    </RejectButton>
+                </Actions>
+            </TopRow>
+
+            <MetaList>
+                <Meta>Помещение: {booking.roomName}</Meta>
+                <Meta>Отдел: {booking.department || '—'}</Meta>
+                <Meta>Дата: {booking.date}</Meta>
+                <Meta>
+                    Время: {booking.startTime} — {booking.endTime}
+                </Meta>
+            </MetaList>
 
             <Purpose>{booking.purpose}</Purpose>
-
-            <Meta>{formatDateTimeLabel(booking.date, booking.startTime, booking.endTime)}</Meta>
-
-            {booking.department && <Meta>Отдел: {booking.department}</Meta>}
-            <Meta>Помещение: {booking.roomName}</Meta>
-
-            <Actions>
-                <ApproveButton onClick={() => onApprove(booking.id)}>Подтвердить</ApproveButton>
-                <RejectButton onClick={() => onReject(booking.id)}>Отклонить</RejectButton>
-            </Actions>
         </Card>
     );
 }
 
 const Card = styled.article`
-  ${glassCard};
   padding: 18px;
+  border-radius: 22px;
+  border: 1px solid ${({ theme }) => theme.line};
+  background: ${({ theme }) => theme.panel};
+  box-shadow: ${({ theme }) => theme.shadow};
 `;
 
-const Top = styled.div`
+const TopRow = styled.div`
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
   align-items: flex-start;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
 
-  @media (max-width: 640px) {
+  @media (max-width: 760px) {
     flex-direction: column;
   }
 `;
 
+const TitleBlock = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
 const Name = styled.h3`
-  margin: 0;
-  font-size: 18px;
+    margin: 0;
+    font-size: 18px;
 `;
 
-const PendingBadge = styled.span`
-  font-size: 12px;
-  border-radius: 999px;
-  padding: 6px 10px;
-  white-space: nowrap;
-  background: rgba(245, 158, 11, 0.16);
-  color: #fcd34d;
-`;
-
-const Purpose = styled.p`
-  margin: 0 0 8px;
-  font-size: 15px;
-`;
-
-const Meta = styled.p`
-  margin: 0 0 6px;
-  font-size: 13px;
-  color: ${({ theme }) => theme.muted};
+const PendingBadge = styled.span<{ $status: BookingItem['status'] }>`
+    width: fit-content;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 12px;
+    background: ${({ $status }) => {
+        if ($status === 'approved') return 'rgba(52,211,153,.15)';
+        if ($status === 'rejected') return 'rgba(251,113,133,.14)';
+        if ($status === 'unreviewed') return 'rgba(148,163,184,.18)';
+        return 'rgba(245,158,11,.16)';
+    }};
+    color: ${({ $status }) => {
+        if ($status === 'approved') return '#5da577';
+        if ($status === 'rejected') return '#ae7078';
+        if ($status === 'unreviewed') return '#848a91';
+        return '#9a812f';
+    }};
 `;
 
 const Actions = styled.div`
-  display: flex;
-  gap: 10px;
-  margin-top: 14px;
-  flex-wrap: wrap;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
 `;
 
-const ApproveButton = styled.button`
-  padding: 10px 14px;
-  border-radius: 14px;
-  cursor: pointer;
-  background: rgba(52, 211, 153, 0.14);
-  color: #86efac;
-  border: 1px solid rgba(52, 211, 153, 0.2);
+const BaseButton = styled.button`
+    min-height: 42px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    border: 1px solid ${({ theme }) => theme.line};
+    cursor: pointer;
+    font-size: 14px;
 `;
 
-const RejectButton = styled.button`
-  padding: 10px 14px;
-  border-radius: 14px;
-  cursor: pointer;
-  background: rgba(251, 113, 133, 0.12);
-  color: #fda4af;
-  border: 1px solid rgba(251, 113, 133, 0.18);
+const ApproveButton = styled(BaseButton)`
+    background: rgba(52, 211, 153, 0.14);
+    color: #86efac;
+`;
+
+const RejectButton = styled(BaseButton)`
+    background: rgba(251, 113, 133, 0.14);
+    color: #fda4af;
+`;
+
+const MetaList = styled.div`
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+`;
+
+const Meta = styled.div`
+    font-size: 14px;
+    color: ${({ theme }) => theme.muted};
+`;
+
+const Purpose = styled.p`
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
 `;

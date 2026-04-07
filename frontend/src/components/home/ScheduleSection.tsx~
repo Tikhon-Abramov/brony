@@ -152,8 +152,6 @@ const GridScroller = styled.div`
     min-width: 0;
     overflow-x: auto;
     overflow-y: visible;
-    background: ${({ theme }) => theme.panel2};
-    border-radius: 24px;
 `;
 
 const BottomBlock = styled.div`
@@ -235,9 +233,9 @@ const StatusBadge = styled.span<{ $status: 'pending' | 'approved' | 'rejected' |
         return 'rgba(245,158,11,.16)';
     }};
     color: ${({ $status }) => {
-        if ($status === 'approved') return '#86efac';
-        if ($status === 'rejected') return '#fda4af';
+        if ($status === 'approved') return '#5da577';
+        if ($status === 'rejected') return '#ae7078';
         if ($status === 'unreviewed') return '#cbd5e1';
-        return '#fcd34d';
+        return '#9a812f';
     }};
 `;
